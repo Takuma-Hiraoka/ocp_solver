@@ -46,7 +46,7 @@ namespace ocp_solver {
     return numStanceLegs;
   }
 
-  inline ocs2::vector_t weightCompensatingInput(const ocs2::PinocchioInterface& pinocchioInterface,
+  inline ocs2::vector_t gravityCompensatingInput(const ocs2::PinocchioInterface& pinocchioInterface,
                                                 const size_t& contactFlags,
                                                 const StateConverter<ocs2::scalar_t>& stateConverter) {
     const static ocs2::scalar_t totalGravitationalForce = computeTotalMass(pinocchioInterface.getModel()) * 9.81;
