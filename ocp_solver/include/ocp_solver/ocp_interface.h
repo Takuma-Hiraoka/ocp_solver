@@ -24,6 +24,8 @@ namespace ocp_solver {
   private:
     std::unique_ptr<ocs2::PinocchioInterface> pinocchioInterfacePtr_;
     std::unique_ptr<StateConverter<ocs2::scalar_t>> stateConverterPtr_;
+    std::unique_ptr<StateConverter<ocs2::ad_scalar_t>> stateConverterADPtr_;
     std::shared_ptr<SwitchedModelReferenceManager> referenceManagerPtr_;
+    std::unique_ptr<ocs2::OptimalControlProblem> problemPtr_;
   };
 }

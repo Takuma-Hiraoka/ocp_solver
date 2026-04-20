@@ -33,6 +33,9 @@ add_library(${PROJECT_NAME}
   src/switched_model_reference_manager.cpp
   src/contact_schedule.cpp
   src/ocp_interface.cpp
+  src/dynamics_helper_functions.cpp
+  src/dynamics_helper_functions_ad.cpp
+  src/system_dynamics_ad.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

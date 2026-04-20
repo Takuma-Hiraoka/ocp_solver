@@ -6,18 +6,20 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include "ocp_solver/contact_candidate.h"
 
 namespace ocp_solver {
   template <typename SCALAR_T>
     class StateConverter {
   public:
-  StateConverter(size_t joint_dim, size_t contact_num, std::unordered_map<std::string, size_t> joint_index_map, size_t base_dim=6)
+  StateConverter(size_t joint_dim, const std::vector<ContactCandidate>& contactCandidates, std::unordered_map<std::string, size_t> joint_index_map, size_t base_dim=6)
     : joint_dim(joint_dim),
-      contact_num(contact_num),
+      contact_num(contactCandidates.size()),
       state_dim(2 * (6 + joint_dim)),
       input_dim(6 * contact_num + joint_dim),
       base_dim(base_dim),
-      joint_index_map(joint_index_map){};
+      joint_index_map(joint_index_map),
+      contactCandidates(contactCandidates){};
     ~StateConverter() = default;
     StateConverter* clone() const { return new StateConverter(*this); }
 
@@ -25,6 +27,9 @@ namespace ocp_solver {
     size_t getInputDim() const { return input_dim; };
     size_t getBaseDim() const { return base_dim; };
     size_t getJointDim() const { return joint_dim; };
+    size_t getContactNum() const { return contact_num; };
+    size_t getGenCoordinatesDim() const { return base_dim + joint_dim; };
+    std::vector<ContactCandidate> getContactCandidates() const { return contactCandidates; }
 
     size_t getBaseStartindex() const { return 0; };
     size_t getJointStartindex() const { return base_dim; };
@@ -198,6 +203,7 @@ namespace ocp_solver {
     const size_t input_dim;
     const size_t base_dim;
     const std::unordered_map<std::string, size_t> joint_index_map;
+    std::vector<ContactCandidate> contactCandidates;
   };
 
 }
