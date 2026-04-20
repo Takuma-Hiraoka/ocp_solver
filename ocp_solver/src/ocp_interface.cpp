@@ -1,7 +1,7 @@
 #include "ocp_solver/ocp_interface.h"
 
 namespace ocp_solver {
-  void OCPInterface::Initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite) {
+  void OCPInterface::Initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
     pinocchio_model_builder::buildModel(pinocchioModel, urdfFile, fixedJointNames, baseJointComposite, urdfModel);
@@ -15,6 +15,7 @@ namespace ocp_solver {
     for (size_t i = 0; i < jointNames.size(); ++i) {
       jointIndexMap[jointNames[i]] = i;
     }
-    stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), 0/*TODO*/, jointIndexMap));
+    stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidates.size(), jointIndexMap, baseJointComposite.nq()));
+    referenceManagerPtr_ = std::make_shared<SwitchedModelReferenceManager>(std::make_shared<ContactSchedule>(initModeSchedule, phaseTransitionIdleTime));
   }
 }
