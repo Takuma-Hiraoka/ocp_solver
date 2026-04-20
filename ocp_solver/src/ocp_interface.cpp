@@ -1,5 +1,6 @@
 #include "ocp_solver/ocp_interface.h"
 #include "ocp_solver/system_dynamics_ad.h"
+#include "ocp_solver/ocp_pre_computation.h"
 
 namespace ocp_solver {
   void OCPInterface::Initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
@@ -26,5 +27,8 @@ namespace ocp_solver {
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr;
     const std::string modelName = "dynamics";
     dynamicsPtr.reset(new SystemDynamicsAD(*pinocchioInterfacePtr_, *stateConverterADPtr_, modelName, "build/cppad_autocode_gen"));
+    problemPtr_->dynamicsPtr = std::move(dynamicsPtr);
+
+    problemPtr_->preComputationPtr.reset(new OCPPreComputation(*pinocchioInterfacePtr_, *stateConverterPtr_));
   }
 }
