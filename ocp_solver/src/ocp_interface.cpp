@@ -4,7 +4,7 @@
 #include "ocp_solver/gravity_compensation_initializer.h"
 
 namespace ocp_solver {
-  void OCPInterface::Initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
+  void OCPInterface::initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
     pinocchio_model_builder::buildModel(pinocchioModel, urdfFile, fixedJointNames, baseJointComposite, urdfModel);
@@ -33,5 +33,11 @@ namespace ocp_solver {
     problemPtr_->dynamicsPtr = std::move(dynamicsPtr);
 
     problemPtr_->preComputationPtr.reset(new OCPPreComputation(*pinocchioInterfacePtr_, *stateConverterPtr_));
+  }
+
+  std::shared_ptr<ocs2::SqpMpc> OCPInterface::createSqpMpc() {
+    std::shared_ptr<ocs2::SqpMpc> mpc = std::make_shared<ocs2::SqpMpc>(mpcSettings_, sqpSettings_, *problemPtr_, *initializerPtr_);
+    mpc->getSolverPtr()->setReferenceManager(referenceManagerPtr_);
+    return mpc;
   }
 }

@@ -37,6 +37,7 @@ add_library(${PROJECT_NAME}
   src/dynamics_helper_functions_ad.cpp
   src/system_dynamics_ad.cpp
   src/ocp_pre_computation.cpp
+  src/gravity_compensation_initializer.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

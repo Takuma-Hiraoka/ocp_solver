@@ -5,11 +5,11 @@
 namespace ocp_solver {
 
   GravityCompensationInitializer::GravityCompensationInitializer(const ocs2::PinocchioInterface& pinocchioInterface,
-                                                                 const McReferenceManager& referenceManager,
+                                                                 const SwitchedModelReferenceManager& referenceManager,
                                                                  const StateConverter<ocs2::scalar_t>& stateConverter)
     : pinocchioInterface_(pinocchioInterface), referenceManagerPtr_(&referenceManager), stateConverterPtr_(&stateConverter) {}
 
-  GravityCompensationInitializer::GravityCompensationInitializer(const WeightCompInitializer& rhs)
+  GravityCompensationInitializer::GravityCompensationInitializer(const GravityCompensationInitializer& rhs)
     : pinocchioInterface_(rhs.pinocchioInterface_),
       referenceManagerPtr_(rhs.referenceManagerPtr_),
       stateConverterPtr_(rhs.stateConverterPtr_) {}
