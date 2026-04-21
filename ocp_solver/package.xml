@@ -11,7 +11,7 @@
   <depend>ocs2_robotic_tools</depend>
   <depend>ocs2_core</depend>
   <depend>ocs2_pinocchio_interface</depend>
-  <depend>pinocchio_vendor</depend>
+  <depend>pinocchio</depend>
   <depend>ocs2_oc</depend>
   <depend>ocs2_mpc</depend>
   <depend>ocs2_sqp</depend>
