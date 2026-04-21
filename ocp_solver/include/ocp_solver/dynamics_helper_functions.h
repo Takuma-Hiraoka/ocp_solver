@@ -100,26 +100,19 @@ namespace ocp_solver {
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                            const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                            const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                           const std::array<Eigen::Matrix<SCALAR_T, 6, 1>, 2>& footWrenches,
+                                           const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
                                            ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface);
 
   ///
   /// @brief WARNING!!!!!! This formualtion currently does not work! Since pinocchio is not aware of the custom 6 dof base joint the results
   /// are wrong. Computes the joint torques via custom inverse dynamics
   ///
-  /// @param q Generalized coordinates
-  /// @param v Generalized velocities
-  /// @param a Generalized accelerations
-  /// @param footWrenches [W_left, W_right]
-  /// @param pinocchioInterface
-  ///
-  /// @return joint torques of same dimension as qdd_joints
 
   template <typename SCALAR_T>
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                               const std::array<Eigen::Matrix<SCALAR_T, 6, 1>, 2>& footWrenches,
+                                               const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
                                                ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface);
 
 }

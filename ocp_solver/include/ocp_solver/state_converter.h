@@ -15,9 +15,9 @@ namespace ocp_solver {
   StateConverter(size_t joint_dim, const std::vector<ContactCandidate>& contactCandidates, std::unordered_map<std::string, size_t> joint_index_map, size_t base_dim=6)
     : joint_dim(joint_dim),
       contact_num(contactCandidates.size()),
-      state_dim(2 * (6 + joint_dim)),
-      input_dim(6 * contact_num + joint_dim),
       base_dim(base_dim),
+      state_dim(2 * (base_dim + joint_dim)),
+      input_dim(6 * contact_num + joint_dim),
       joint_index_map(joint_index_map),
       contactCandidates(contactCandidates){};
     ~StateConverter() = default;
@@ -42,41 +42,48 @@ namespace ocp_solver {
 
     Eigen::Matrix<SCALAR_T, -1, 1> getGeneralizedCoordinates(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
       assert(state.size() == this->state_dim);
-      return state.head((6 + joint_dim));
+      return state.head((base_dim + joint_dim));
     };
 
     Eigen::Matrix<SCALAR_T, 6, 1> getBasePose(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.head(6);
     };
 
     Eigen::Matrix<SCALAR_T, 3, 1> getBasePosition(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.head(3);
     }
 
     Eigen::Matrix<SCALAR_T, 3, 1> getBaseOrientationEulerZYX(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.segment(3, 3);
     }
 
     Eigen::Matrix<SCALAR_T, 3, 1> getBaseComLinearVelocity(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.segment((base_dim + joint_dim), 3);
     }
 
     Eigen::Matrix<SCALAR_T, 3, 1> getBaseLinearVelocity(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.segment((base_dim + joint_dim), 3);
     }
 
     // Contains Euler angle derivatives, not angular velocity!
     Eigen::Matrix<SCALAR_T, 6, 1> getBaseComVelocity(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.segment((base_dim + joint_dim), 6);
     };
 
     Eigen::Matrix<SCALAR_T, 3, 1> getBaseEulerZYXDerivatives(const Eigen::Matrix<SCALAR_T, -1, 1>& state) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       return state.segment((base_dim + joint_dim) + 3, 3);
     }
@@ -104,31 +111,36 @@ namespace ocp_solver {
 
     void setGeneralizedCoordinates(Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, -1, 1>& generalizedCorrdinates) const {
       assert(state.size() == this->state_dim);
-      assert(generalizedCorrdinates.size() == (6 + joint_dim));
+      assert(generalizedCorrdinates.size() == (base_dim + joint_dim));
       state.head((base_dim + joint_dim)) = generalizedCorrdinates;
     }
 
     void setBasePose(Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, 6, 1>& basePose) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       state.head(6) = basePose;
     }
 
     void setBasePosition(Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, 3, 1>& position) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       state.head(3) = position;
     }
 
     void setBaseOrientationEulerZYX(Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, 3, 1>& eulerAnglesZYX) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       state.segment(3, 3) = eulerAnglesZYX;
     }
 
     void setBaseLinearVelocity(Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, 3, 1>& velocity) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       state.segment((base_dim + joint_dim), 3) = velocity;
     }
 
     void setBaseOrientationEulerZYXDerivatives(Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, 3, 1>& eulerAnglesZYXDerivative) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       state.segment((base_dim + joint_dim) + 3, 3) = eulerAnglesZYXDerivative;
     }
@@ -145,6 +157,7 @@ namespace ocp_solver {
     }
 
     void adaptBasePoseHeight(Eigen::Matrix<SCALAR_T, -1, 1>& state, ocs2::scalar_t heightChange) const {
+      assert(this->base_dim == 6);
       assert(state.size() == this->state_dim);
       state[2] += heightChange;
     }

@@ -49,16 +49,16 @@ namespace ocp_solver {
   std::vector<Eigen::Matrix<SCALAR_T, 3, 1>> getContactPositions(const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface,
                                                                  const StateConverter<SCALAR_T>& stateConverter) {
     assert(stateConverter.modelSettings.contactNames.size() == stateConverter.getContactNum());
-    std::vector<Eigen::Matrix<SCALAR_T, 3, 1>> footPositions;
-    footPositions.reserve(stateConverter.getContactNum());
+    std::vector<Eigen::Matrix<SCALAR_T, 3, 1>> contactPositions;
+    contactPositions.reserve(stateConverter.getContactNum());
     const auto& data = pinocchioInterface.getData();
     std::vector<pinocchio::FrameIndex> contactFrameIndices = getContactFrameIndices(pinocchioInterface, stateConverter);
 
     for (size_t i = 0; i < stateConverter.getContactNum(); i++) {
-      const Eigen::Matrix<SCALAR_T, 3, 1>& footPosition = data.oMf[getContactFrameIndex(pinocchioInterface, stateConverter, i)].translation();
-      footPositions.emplace_back(footPosition);
+      const Eigen::Matrix<SCALAR_T, 3, 1>& contactPosition = data.oMf[getContactFrameIndex(pinocchioInterface, stateConverter, i)].translation();
+      contactPositions.emplace_back(contactPosition);
     }
-    return footPositions;
+    return contactPositions;
   }
   template std::vector<Eigen::Matrix<ocs2::ad_scalar_t, 3, 1>> getContactPositions(const ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface,
                                                                                    const StateConverter<ocs2::ad_scalar_t>& stateConverter);
@@ -121,19 +121,19 @@ namespace ocp_solver {
     return baseAccelerations;
   }
   template Eigen::Matrix<ocs2::scalar_t, 6, 1> computeBaseAcceleration(const Eigen::Matrix<ocs2::scalar_t, -1, -1>& M,
-                                                             const Eigen::Matrix<ocs2::scalar_t, -1, 1>& nle,
-                                                             const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                             const Eigen::Matrix<ocs2::scalar_t, -1, 1>& externalForcesInJointSpace);
+                                                                       const Eigen::Matrix<ocs2::scalar_t, -1, 1>& nle,
+                                                                       const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
+                                                                       const Eigen::Matrix<ocs2::scalar_t, -1, 1>& externalForcesInJointSpace);
   template Eigen::Matrix<ocs2::ad_scalar_t, 6, 1> computeBaseAcceleration(const Eigen::Matrix<ocs2::ad_scalar_t, -1, -1>& M,
-                                                                const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& nle,
-                                                                const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
-                                                                const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& externalForcesInJointSpace);
+                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& nle,
+                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
+                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& externalForcesInJointSpace);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                     const std::array<Eigen::Matrix<SCALAR_T, 6, 1>, 2>& footWrenches,
+                                                     const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
                                                      ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
     const auto& model = pinocchioInterface.getModel();
     pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
@@ -141,25 +141,19 @@ namespace ocp_solver {
     pinocchio::crba(model, data, q);
     pinocchio::nonLinearEffects(model, data, q, qd);
 
-    // Compute Jacobians for the foot frames
-    Eigen::Matrix<SCALAR_T, -1, -1> J_foot_l = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, qd.size());
-    Eigen::Matrix<SCALAR_T, -1, -1> J_foot_r = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, qd.size());
+    size_t n_qd = qd.size();
+    Eigen::Matrix<SCALAR_T, -1, 1> externalForcesInJointSpace = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(n_qd);
 
-    ////////////////////////////////////////////////////////////////////////////
+    for (int i=0; i<wrenches.size(); i++) {
+      Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, n_qd);
+      pinocchio::computeFrameJacobian(model, data, q, model.getFrameId(wrenches[i].second), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      externalForcesInJointSpace += J.transpose() * wrenches[i].first;
+    }
 
-    pinocchio::computeFrameJacobian(model, data, q, model.getFrameId("foot_l_contact"), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                    J_foot_l);
-    pinocchio::computeFrameJacobian(model, data, q, model.getFrameId("foot_r_contact"), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                    J_foot_r);
+    Eigen::Matrix<SCALAR_T, -1, 1> q_dd(n_qd);
+    if (n_qd > qdd_joints.size()) q_dd.head(6) = computeBaseAcceleration(data.M, data.nle, qdd_joints, externalForcesInJointSpace);
+    q_dd.tail(qdd_joints.size()) = qdd_joints;
 
-    // Project contact wrenches into the joint space
-
-    Eigen::Matrix<SCALAR_T, -1, 1> externalForcesInJointSpace = J_foot_l.transpose() * footWrenches[0] + J_foot_r.transpose() * footWrenches[1];
-
-    Eigen::Matrix<SCALAR_T, 6, 1> baseAccelerations = computeBaseAcceleration(data.M, data.nle, qdd_joints, externalForcesInJointSpace);
-
-    Eigen::Matrix<SCALAR_T, -1, 1> q_dd(qd.size());
-    q_dd << baseAccelerations, qdd_joints;
     size_t n_joints = qdd_joints.size();
 
     Eigen::Matrix<SCALAR_T, -1, 1> jointTorques =
@@ -171,19 +165,19 @@ namespace ocp_solver {
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorques(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                     const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,
                                                                     const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                                    const std::array<Eigen::Matrix<ocs2::scalar_t, 6, 1>, 2>& footWrenches,
+                                                                    const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, std::string>>& wrenches,
                                                                     ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinocchioInterface);
   template Eigen::Matrix<ocs2::ad_scalar_t, -1, 1> computeJointTorques(const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& q,
                                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,
                                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
-                                                                       const std::array<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, 2>& footWrenches,
+                                                                       const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, std::string>>& wrenches,
                                                                        ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                         const std::array<Eigen::Matrix<SCALAR_T, 6, 1>, 2>& footWrenches,
+                                                         const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
                                                          ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
     const auto& model = pinocchioInterface.getModel();
     auto& data = pinocchioInterface.getData();
@@ -198,39 +192,31 @@ namespace ocp_solver {
                               const auto jointIndex = model.frames[frameIndex].parent;
                               const Eigen::Matrix<SCALAR_T, 3, 1> translationJointFrameToContactFrame = model.frames[frameIndex].placement.translation();
                               const Eigen::Matrix<SCALAR_T, 3, 3> rotationWorldFrameToJointFrame = data.oMi[jointIndex].rotation().transpose();
-                              const Eigen::Matrix<SCALAR_T, 3, 1> contactForce = rotationWorldFrameToJointFrame * footWrenches[i].head(3);
-                              const Eigen::Matrix<SCALAR_T, 3, 1> contactTorque = rotationWorldFrameToJointFrame * footWrenches[i].tail(3);
+                              const Eigen::Matrix<SCALAR_T, 3, 1> contactForce = rotationWorldFrameToJointFrame * wrenches[i].first.head(3);
+                              const Eigen::Matrix<SCALAR_T, 3, 1> contactTorque = rotationWorldFrameToJointFrame * wrenches[i].first.tail(3);
                               fextDesired[jointIndex].linear() = contactForce;
                               fextDesired[jointIndex].angular() = translationJointFrameToContactFrame.cross(contactForce) + contactTorque;
                             };
 
-    setExternalForce("foot_l_contact", 0);
-    setExternalForce("foot_r_contact", 1);
+    for (int i=0; i<wrenches.size(); i++) setExternalForce(wrenches[i].second, i);
 
     pinocchio::crba(model, data, q);
     pinocchio::nonLinearEffects(model, data, q, qd);
 
-    // Compute Jacobians for the foot frames
-    Eigen::Matrix<SCALAR_T, -1, -1> J_foot_l = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, qd.size());
-    Eigen::Matrix<SCALAR_T, -1, -1> J_foot_r = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, qd.size());
+    size_t n_qd = qd.size();
+    Eigen::Matrix<SCALAR_T, -1, 1> externalForcesInJointSpace = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(n_qd);
 
-    ////////////////////////////////////////////////////////////////////////////
-
-    pinocchio::computeFrameJacobian(model, data, q, model.getFrameId("foot_l_contact"), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                    J_foot_l);
-    pinocchio::computeFrameJacobian(model, data, q, model.getFrameId("foot_r_contact"), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
-                                    J_foot_r);
-
-    // Project contact wrenches into the joint space
-
-    Eigen::Matrix<SCALAR_T, -1, 1> externalForcesInJointSpace = J_foot_l.transpose() * footWrenches[0] + J_foot_r.transpose() * footWrenches[1];
+    for (int i=0; i<wrenches.size(); i++) {
+      Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, n_qd);
+      pinocchio::computeFrameJacobian(model, data, q, model.getFrameId(wrenches[i].second), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      externalForcesInJointSpace += J.transpose() * wrenches[i].first;
+    }
 
     // Repalce q with external forces in joint space.
 
-    Eigen::Matrix<SCALAR_T, 6, 1> baseAccelerations = computeBaseAcceleration(data.M, data.nle, qdd_joints, externalForcesInJointSpace);
-
-    Eigen::Matrix<SCALAR_T, -1, 1> q_dd(qd.size());
-    q_dd << baseAccelerations, qdd_joints;
+    Eigen::Matrix<SCALAR_T, -1, 1> q_dd(n_qd);
+    if (n_qd > qdd_joints.size()) q_dd.head(6) = computeBaseAcceleration(data.M, data.nle, qdd_joints, externalForcesInJointSpace);
+    q_dd.tail(qdd_joints.size()) = qdd_joints;
 
     ocs2::vector_t torques = pinocchio::rnea(model, data, q, qd, q_dd, fextDesired);
 
@@ -239,12 +225,12 @@ namespace ocp_solver {
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                                        const std::array<Eigen::Matrix<ocs2::scalar_t, 6, 1>, 2>& footWrenches,
+                                                                        const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, std::string>>& wrenches,
                                                                         ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinocchioInterface);
   // template Eigen::Matrix<ocs2::ad_scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& q,
-  //                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,
-  //                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
-  //                                                        const std::array<VECTOR6_T<ocs2::ad_scalar_t>, 2>& footWrenches,
-  //                                                        ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface);
+  //                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,
+  //                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
+  //                                                                          const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, std::string>>& wrenches,
+  //                                                                          ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface);
 
 }

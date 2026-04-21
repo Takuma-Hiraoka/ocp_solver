@@ -34,6 +34,7 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface_.getData();
 
     pinocchio::forwardKinematics(model, data, q);
+    pinocchio::computeJointJacobians(model, data, q);
     pinocchio::updateFramePlacements(model, data);
   }
 
