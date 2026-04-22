@@ -41,6 +41,8 @@ namespace ocp_solver {
     ~OCPInterface() override = default;
     void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const ocs2::ModeSchedule& initModeSchedule=ocs2::ModeSchedule(), const ocs2::scalar_t& phaseTransitionIdleTime=0.5, const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
     std::shared_ptr<ocs2::SqpMpc> createSqpMpc();
+    void addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model);
+    void createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap);
 
     const ocs2::PinocchioInterface& getPinocchioInterface() const { return *this->pinocchioInterfacePtr_; }
     const StateConverter<ocs2::scalar_t>& getStateConverter() const { return *stateConverterPtr_; }

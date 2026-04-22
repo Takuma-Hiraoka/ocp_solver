@@ -8,17 +8,14 @@ namespace ocp_solver {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
     pinocchio_model_builder::buildModel(pinocchioModel, urdfFile, fixedJointNames, baseJointComposite, urdfModel);
+    addContactFrame(contactCandidates, pinocchioModel);
+
     pinocchioInterfacePtr_.reset(new ocs2::PinocchioInterface(pinocchioModel, urdfModel));
 
     std::vector<std::string> jointNames;
-    size_t joint_id_offset = (baseJointComposite.nq() == 0) ? 1 : 2; // universe, root_joint
-    for (pinocchio::JointIndex joint_id = joint_id_offset; joint_id < (pinocchio::JointIndex)pinocchioModel.njoints; ++joint_id) {
-      if (std::find(fixedJointNames.begin(), fixedJointNames.end(), pinocchioModel.names[joint_id]) == fixedJointNames.end()) jointNames.push_back(pinocchioModel.names[joint_id]);
-    }
     std::unordered_map<std::string, size_t> jointIndexMap;
-    for (size_t i = 0; i < jointNames.size(); ++i) {
-      jointIndexMap[jointNames[i]] = i;
-    }
+    createJointInfo(fixedJointNames, baseJointComposite, pinocchioInterfacePtr_->getModel(), jointNames, jointIndexMap);
+
     stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidates, jointIndexMap, baseJointComposite.nq()));
     stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidates, jointIndexMap, baseJointComposite.nq()));
 
@@ -41,4 +38,22 @@ namespace ocp_solver {
     mpc->getSolverPtr()->setReferenceManager(referenceManagerPtr_);
     return mpc;
   }
+
+  void OCPInterface::addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model) {
+    for (ContactCandidate candidate : contactCandidates) {
+      pinocchio::Frame contactCenterFrame(candidate.name, model.getJointId(candidate.parentJointName), model.getFrameId(candidate.parentJointName), candidate.localPose, pinocchio::FIXED_JOINT);
+      model.addFrame(contactCenterFrame);
+    }
+  }
+
+  void OCPInterface::createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap) {
+    size_t joint_id_offset = (baseJointComposite.nq() == 0) ? 1 : 2; // universe, root_joint
+    for (pinocchio::JointIndex joint_id = joint_id_offset; joint_id < (pinocchio::JointIndex)model.njoints; ++joint_id) {
+      if (std::find(fixedJointNames.begin(), fixedJointNames.end(), model.names[joint_id]) == fixedJointNames.end()) jointNames.push_back(model.names[joint_id]);
+    }
+    for (size_t i = 0; i < jointNames.size(); ++i) {
+      jointIndexMap[jointNames[i]] = i;
+    }
+  }
+
 }

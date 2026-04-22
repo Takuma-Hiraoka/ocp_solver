@@ -6,6 +6,7 @@ namespace ocp_solver {
   class ContactCandidate {
   public:
     std::string name;
+    std::string parentJointName;
     pinocchio::SE3 localPose;
   };
 }
