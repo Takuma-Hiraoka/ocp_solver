@@ -4,7 +4,7 @@
 #include "ocp_solver/gravity_compensation_initializer.h"
 
 namespace ocp_solver {
-  void OCPInterface::initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
+  void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
     pinocchio_model_builder::buildModel(pinocchioModel, urdfFile, fixedJointNames, baseJointComposite, urdfModel);
@@ -29,7 +29,7 @@ namespace ocp_solver {
     problemPtr_.reset(new ocs2::OptimalControlProblem);
 
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr;
-    const std::string modelName = "dynamics";
+    const std::string modelName = taskName + "_dynamics";
     dynamicsPtr.reset(new SystemDynamicsAD(*pinocchioInterfacePtr_, *stateConverterADPtr_, modelName, "build/cppad_autocode_gen"));
     problemPtr_->dynamicsPtr = std::move(dynamicsPtr);
 

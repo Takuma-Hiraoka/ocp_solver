@@ -39,7 +39,7 @@ namespace ocp_solver {
       sqpSettings_.threadPriority = 90;
     }
     ~OCPInterface() override = default;
-    void initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const ocs2::ModeSchedule& initModeSchedule=ocs2::ModeSchedule(), const ocs2::scalar_t& phaseTransitionIdleTime=0.5, const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
+    void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const ocs2::ModeSchedule& initModeSchedule=ocs2::ModeSchedule(), const ocs2::scalar_t& phaseTransitionIdleTime=0.5, const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
     std::shared_ptr<ocs2::SqpMpc> createSqpMpc();
 
     const ocs2::PinocchioInterface& getPinocchioInterface() const { return *this->pinocchioInterfacePtr_; }
