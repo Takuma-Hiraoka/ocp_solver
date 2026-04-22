@@ -11,7 +11,8 @@ namespace ocp_solver {
     pinocchioInterfacePtr_.reset(new ocs2::PinocchioInterface(pinocchioModel, urdfModel));
 
     std::vector<std::string> jointNames;
-    for (pinocchio::JointIndex joint_id = 2; joint_id < (pinocchio::JointIndex)pinocchioModel.njoints; ++joint_id) {
+    size_t joint_id_offset = (baseJointComposite.nq() == 0) ? 1 : 2; // universe, root_joint
+    for (pinocchio::JointIndex joint_id = joint_id_offset; joint_id < (pinocchio::JointIndex)pinocchioModel.njoints; ++joint_id) {
       if (std::find(fixedJointNames.begin(), fixedJointNames.end(), pinocchioModel.names[joint_id]) == fixedJointNames.end()) jointNames.push_back(pinocchioModel.names[joint_id]);
     }
     std::unordered_map<std::string, size_t> jointIndexMap;
