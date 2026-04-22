@@ -18,6 +18,26 @@ namespace ocp_solver {
   }
   class OCPInterface : public ocs2::RobotInterface {
   public:
+    OCPInterface() {
+      mpcSettings_.solutionTimeWindow_ = -1;
+      mpcSettings_.coldStart_ = false;
+      mpcSettings_.debugPrint_ = false;
+
+      sqpSettings_.nThreads = 4;
+      sqpSettings_.sqpIteration = 100;
+      sqpSettings_.deltaTol = 1e-4;
+      sqpSettings_.g_max = 1e-2;
+      sqpSettings_.g_min = 1e-6;
+      sqpSettings_.inequalityConstraintMu = 0.1;
+      sqpSettings_.inequalityConstraintDelta = 5.0;
+      sqpSettings_.projectStateInputEqualityConstraints = true;
+      sqpSettings_.printSolverStatistics = false;
+      sqpSettings_.printSolverStatus = false;
+      sqpSettings_.printLinesearch = false;
+      sqpSettings_.useFeedbackPolicy = false;
+      sqpSettings_.integratorType = ocs2::SensitivityIntegratorType::RK4;
+      sqpSettings_.threadPriority = 90;
+    }
     ~OCPInterface() override = default;
     void initialize(const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const ocs2::ModeSchedule& initModeSchedule=ocs2::ModeSchedule(), const ocs2::scalar_t& phaseTransitionIdleTime=0.5, const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
     std::shared_ptr<ocs2::SqpMpc> createSqpMpc();
