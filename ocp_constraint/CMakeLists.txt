@@ -16,6 +16,7 @@ find_package(Boost REQUIRED COMPONENTS
 set(dependencies
   Eigen3
   ocs2_core
+  ocp_solver
   ocs2_pinocchio_interface
 )
 

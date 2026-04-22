@@ -17,14 +17,14 @@ namespace ocp_solver {
     const Eigen::Matrix<ocs2::scalar_t, 3, 3>& getRWorldToContacts(size_t contactIndex) const { return R_world_to_contacts_[contactIndex]; }
 
     ocs2::PinocchioInterface& getPinocchioInterface() { return pinocchioInterface_; }
-    const ocs2::PinocchioInterface& getPinocchioInterface() const { return pinocchioInterface_; }
+    ocs2::PinocchioInterface& getPinocchioInterface() const { return pinocchioInterface_; }
 
   protected:
     OCPPreComputation(const OCPPreComputation& rhs);
 
     void updatePinocchioModelKinematics(const ocs2::vector_t& generalizedCoordinates);
 
-    ocs2::PinocchioInterface pinocchioInterface_;
+    mutable ocs2::PinocchioInterface pinocchioInterface_;
     const StateConverter<ocs2::scalar_t>* stateConverterPtr_;
 
     std::vector<Eigen::Matrix<ocs2::scalar_t, 3, 3>> R_world_to_contacts_;

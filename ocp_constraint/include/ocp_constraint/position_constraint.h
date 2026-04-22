@@ -12,8 +12,7 @@
 namespace ocp_constraint {
   class PositionConstraint final : public ocs2::StateConstraint {
   public:
-    PositionConstraint(const ocs2::PinocchioInterface& pinocchioInterface,
-                       const std::string& targetFrameName,
+    PositionConstraint(const pinocchio::FrameIndex targetFrameId,
                        const Eigen::Vector3d& targetPosition);
 
     ~PositionConstraint() override = default;
@@ -31,8 +30,6 @@ namespace ocp_constraint {
                                                                    const ocs2::PreComputation& preComp) const override;
 
   private:
-    mutable ocs2::PinocchioInterface pinocchioInterface_;
-
     pinocchio::FrameIndex targetFrameId_;
     Eigen::Vector3d targetPosition_;
   };
