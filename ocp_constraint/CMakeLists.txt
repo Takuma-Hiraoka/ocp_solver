@@ -18,6 +18,7 @@ set(dependencies
   ocs2_core
   ocp_solver
   ocs2_pinocchio_interface
+  ocs2_robotic_tools
 )
 
 foreach(dep ${dependencies})

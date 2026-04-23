@@ -13,13 +13,15 @@ namespace ocp_constraint {
   class PositionConstraint final : public ocs2::StateConstraint {
   public:
     PositionConstraint(const pinocchio::FrameIndex targetFrameId,
-                       const Eigen::Vector3d& targetPosition);
+                       const pinocchio::SE3& targetPose);
 
     ~PositionConstraint() override = default;
 
     PositionConstraint* clone() const override;
 
-    size_t getNumConstraints(ocs2::scalar_t time) const override { return 3; };
+    bool isActive(ocs2::scalar_t time) const override;
+
+    size_t getNumConstraints(ocs2::scalar_t time) const override { return 6; };
 
     ocs2::vector_t getValue(ocs2::scalar_t time,
                             const ocs2::vector_t& state,
@@ -31,6 +33,7 @@ namespace ocp_constraint {
 
   private:
     pinocchio::FrameIndex targetFrameId_;
-    Eigen::Vector3d targetPosition_;
+    pinocchio::SE3 targetPose_;
+    bool isActive_ = true;
   };
 }

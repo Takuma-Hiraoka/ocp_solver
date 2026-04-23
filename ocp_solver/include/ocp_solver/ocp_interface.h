@@ -44,6 +44,7 @@ namespace ocp_solver {
     void addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model);
     void createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap);
 
+    ocs2::PinocchioInterface& getPinocchioInterface() { return *this->pinocchioInterfacePtr_; }
     const ocs2::PinocchioInterface& getPinocchioInterface() const { return *this->pinocchioInterfacePtr_; }
     const StateConverter<ocs2::scalar_t>& getStateConverter() const { return *stateConverterPtr_; }
     const StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() const { return *stateConverterADPtr_; }
