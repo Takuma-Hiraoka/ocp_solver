@@ -28,6 +28,7 @@ endforeach()
 add_library(${PROJECT_NAME}
   src/penalties/piece_wise_polynominal_barrier_penalty.cpp
   src/position_constraint.cpp
+  src/point_constraint.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

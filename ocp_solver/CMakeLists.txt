@@ -38,6 +38,7 @@ add_library(${PROJECT_NAME}
   src/system_dynamics_ad.cpp
   src/ocp_pre_computation.cpp
   src/gravity_compensation_initializer.cpp
+  src/ocp_pinocchio_mapping.cpp
   )
 
 target_include_directories(${PROJECT_NAME}
