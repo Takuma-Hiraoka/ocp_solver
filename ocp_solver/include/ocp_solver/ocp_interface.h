@@ -47,7 +47,9 @@ namespace ocp_solver {
 
     ocs2::PinocchioInterface& getPinocchioInterface() { return *this->pinocchioInterfacePtr_; }
     const ocs2::PinocchioInterface& getPinocchioInterface() const { return *this->pinocchioInterfacePtr_; }
+    StateConverter<ocs2::scalar_t>& getStateConverter() { return *stateConverterPtr_; }
     const StateConverter<ocs2::scalar_t>& getStateConverter() const { return *stateConverterPtr_; }
+    StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() { return *stateConverterADPtr_; }
     const StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() const { return *stateConverterADPtr_; }
     std::shared_ptr<ocs2::ReferenceManagerInterface> getReferenceManagerPtr() const override { return referenceManagerPtr_; }
     const OCPPinocchioMapping& getMapping() const { return *mappingPtr_; }
