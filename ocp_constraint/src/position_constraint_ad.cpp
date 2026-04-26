@@ -2,20 +2,20 @@
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 
 namespace ocp_constraint {
-  PositionConstraintAD::PositionConstraintAD(const ocp_solver::PinocchioEndEffectorDynamicsCppAd& endEffectorDynamics,
-                                             const pinocchio::SE3 targetPose,
+  PositionConstraintAD::PositionConstraintAD(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
+                                             const ocp_solver::PinocchioEndEffectorDynamicsCppAd& endEffectorDynamics,
                                              size_t numConstraints,
                                              Config config)
     : StateInputConstraint(ocs2::ConstraintOrder::Linear),
+      referenceManagerPtr_(&referenceManager),
       endEffectorDynamicsPtr_(endEffectorDynamics.clone()),
-      targetPose_(targetPose),
       numConstraints_(numConstraints),
       config_(std::move(config)) {}
 
   PositionConstraintAD::PositionConstraintAD(const PositionConstraintAD& rhs)
     : StateInputConstraint(rhs),
+      referenceManagerPtr_(rhs.referenceManagerPtr_),
       endEffectorDynamicsPtr_(rhs.endEffectorDynamicsPtr_->clone()),
-      targetPose_(rhs.targetPose_),
       numConstraints_(rhs.numConstraints_),
       config_(rhs.config_) {}
 
@@ -30,16 +30,24 @@ namespace ocp_constraint {
     config_ = std::move(config);
   }
 
+  bool PositionConstraintAD::isActive(ocs2::scalar_t time) const {
+    return referenceManagerPtr_->isInContact(time, endEffectorDynamicsPtr_->getFrameIds()[0]);
+  }
+
   ocs2::vector_t PositionConstraintAD::getValue(ocs2::scalar_t time,
                                                 const ocs2::vector_t& state,
                                                 const ocs2::vector_t& input,
                                                 const ocs2::PreComputation& preComp) const {
     ocs2::vector_t f = ocs2::vector_t::Zero(numConstraints_);
     if (config_.Ax.size() > 0) {
+      pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
+      for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
+        if (contact.first == endEffectorDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
+      }
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
       Eigen::Matrix<ocs2::scalar_t, 6, 1> xError;
-      xError << endEffectorDynamicsPtr_->getPosition(state).front() - targetPose_.translation(),
-        endEffectorDynamicsPtr_->getOrientationError(state, {ocs2::matrixToQuaternion(targetPose_.rotation())}).front();
+      xError << endEffectorDynamicsPtr_->getPosition(state).front() - targetPose.translation(),
+        endEffectorDynamicsPtr_->getOrientationError(state, {ocs2::matrixToQuaternion(targetPose.rotation())}).front();
       f.noalias() += config_.Ax * xError;
     }
     if (config_.Av.size() > 0) {
@@ -61,11 +69,15 @@ namespace ocp_constraint {
     // Orientation error gains are ignored for now
     // This is equal with assuming that the bottom 3 rows of Ax are zero.
     if (config_.Ax.size() > 0) {
+      pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
+      for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
+        if (contact.first == endEffectorDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
+      }
       const auto positionApprox = endEffectorDynamicsPtr_->getPositionLinearApproximation(state).front();
       const auto orientationApprox =
-        endEffectorDynamicsPtr_->getOrientationErrorLinearApproximation(state, {ocs2::matrixToQuaternion(targetPose_.rotation())}).front();
+        endEffectorDynamicsPtr_->getOrientationErrorLinearApproximation(state, {ocs2::matrixToQuaternion(targetPose.rotation())}).front();
 
-      linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose_.translation());
+      linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
       linearApproximation.f.tail(3).noalias() += config_.Ax.bottomRightCorner(3, 3) * orientationApprox.f;
       linearApproximation.dfdx.topRows(3).noalias() += config_.Ax.topLeftCorner(3, 3) * positionApprox.dfdx;
       linearApproximation.dfdx.bottomRows(3).noalias() += config_.Ax.bottomRightCorner(3, 3) * orientationApprox.dfdx;
