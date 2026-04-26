@@ -133,7 +133,7 @@ namespace ocp_solver {
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                     const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
+                                                     const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                      ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
     const auto& model = pinocchioInterface.getModel();
     pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
@@ -146,7 +146,7 @@ namespace ocp_solver {
 
     for (int i=0; i<wrenches.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, n_qd);
-      pinocchio::computeFrameJacobian(model, data, q, model.getFrameId(wrenches[i].second), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      pinocchio::computeFrameJacobian(model, data, q, wrenches[i].second, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       externalForcesInJointSpace += J.transpose() * wrenches[i].first;
     }
 
@@ -165,19 +165,19 @@ namespace ocp_solver {
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorques(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                     const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,
                                                                     const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                                    const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, std::string>>& wrenches,
+                                                                    const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                                     ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinocchioInterface);
   template Eigen::Matrix<ocs2::ad_scalar_t, -1, 1> computeJointTorques(const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& q,
                                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,
                                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
-                                                                       const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, std::string>>& wrenches,
+                                                                       const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                                        ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                         const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
+                                                         const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                          ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
     const auto& model = pinocchioInterface.getModel();
     auto& data = pinocchioInterface.getData();
@@ -187,8 +187,7 @@ namespace ocp_solver {
     pinocchio::forwardKinematics(model, data, q, qd);
     pinocchio::updateFramePlacements(model, data);
 
-    auto setExternalForce = [&](const std::string& frameName, size_t i) {
-                              const auto frameIndex = model.getFrameId(frameName);
+    auto setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {
                               const auto jointIndex = model.frames[frameIndex].parent;
                               const Eigen::Matrix<SCALAR_T, 3, 1> translationJointFrameToContactFrame = model.frames[frameIndex].placement.translation();
                               const Eigen::Matrix<SCALAR_T, 3, 3> rotationWorldFrameToJointFrame = data.oMi[jointIndex].rotation().transpose();
@@ -208,7 +207,7 @@ namespace ocp_solver {
 
     for (int i=0; i<wrenches.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, n_qd);
-      pinocchio::computeFrameJacobian(model, data, q, model.getFrameId(wrenches[i].second), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      pinocchio::computeFrameJacobian(model, data, q, wrenches[i].second, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       externalForcesInJointSpace += J.transpose() * wrenches[i].first;
     }
 
@@ -225,12 +224,12 @@ namespace ocp_solver {
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                                        const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, std::string>>& wrenches,
+                                                                        const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                                         ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinocchioInterface);
   // template Eigen::Matrix<ocs2::ad_scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& q,
   //                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,
   //                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
-  //                                                                          const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, std::string>>& wrenches,
+  //                                                                          const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
   //                                                                          ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface);
 
 }

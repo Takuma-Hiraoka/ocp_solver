@@ -19,8 +19,8 @@ namespace ocp_solver {
   }
 
   void GravityCompensationInitializer::compute(ocs2::scalar_t time, const ocs2::vector_t& state, ocs2::scalar_t nextTime, ocs2::vector_t& input, ocs2::vector_t& nextState) {
-    size_t contactFlags = referenceManagerPtr_->getContactFlags(time);
-    input = gravityCompensatingInput(pinocchioInterface_, contactFlags, *stateConverterPtr_);
+    // TODO
+    input = ocs2::vector_t::Zero(stateConverterPtr_->getInputDim());
     nextState = state;
   }
 

@@ -47,7 +47,7 @@ namespace ocp_solver {
 
     if (request.contains(ocs2::Request::Constraint)) {
       for (size_t i = 0; i < stateConverterPtr_->getContactNum(); i++) {
-        pinocchio::FrameIndex frameID = pinocchioInterface_.getModel().getFrameId(stateConverterPtr_->getContactCandidates()[i].name);
+        pinocchio::FrameIndex frameID = stateConverterPtr_->getContactCandidateIds()[i];
         R_world_to_contacts_[i] = pinocchioInterface_.getData().oMf[frameID].rotation().inverse();
       }
     }

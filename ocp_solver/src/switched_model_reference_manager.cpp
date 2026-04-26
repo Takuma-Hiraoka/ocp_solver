@@ -1,22 +1,26 @@
 #include "ocp_solver/switched_model_reference_manager.h"
 
 namespace ocp_solver {
-  SwitchedModelReferenceManager::SwitchedModelReferenceManager(std::shared_ptr<ContactSchedule> contactSchedulePtr)
+  SwitchedModelReferenceManager::SwitchedModelReferenceManager(ContactSchedule contactSchedule)
     : ReferenceManager(ocs2::TargetTrajectories(), ocs2::ModeSchedule()),
-      contactSchedulePtr_(std::move(contactSchedulePtr)) {}
+      contactSchedule_(std::move(contactSchedule)) {}
 
-  void SwitchedModelReferenceManager::setModeSchedule(const ocs2::ModeSchedule& modeSchedule) {
-    ReferenceManager::setModeSchedule(modeSchedule);
-    contactSchedulePtr_->setModeSchedule(modeSchedule);
+  std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > SwitchedModelReferenceManager::getContacts(ocs2::scalar_t time) const {
+    return this->getContactSchedule().contactAtTime(time);
   }
 
-  size_t SwitchedModelReferenceManager::getContactFlags(ocs2::scalar_t time) const {
-    return this->getModeSchedule().modeAtTime(time);
+  bool SwitchedModelReferenceManager::isInContact(ocs2::scalar_t time, pinocchio::FrameIndex index) const {
+    std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > contacts = this->getContacts(time);
+    for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : contacts) {
+      if (contact.first == index) return true;
+    }
+    return false;
   }
 
   void SwitchedModelReferenceManager::modifyReferences(ocs2::scalar_t initTime, ocs2::scalar_t finalTime, const ocs2::vector_t& initState,
                                                        ocs2::TargetTrajectories& targetTrajectories, ocs2::ModeSchedule& modeSchedule) {
+    contactSchedule_.updateFromBuffer();
     const auto timeHorizon = finalTime - initTime;
-    modeSchedule = contactSchedulePtr_->getModeSchedule(initTime - timeHorizon, finalTime + timeHorizon);
+    // TODO
   }
 }

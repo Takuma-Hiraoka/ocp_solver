@@ -4,7 +4,7 @@
 #include "ocp_solver/gravity_compensation_initializer.h"
 
 namespace ocp_solver {
-  void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const ocs2::ModeSchedule& initModeSchedule, const ocs2::scalar_t& phaseTransitionIdleTime, const pinocchio::JointModelComposite& baseJointComposite) {
+  void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
     pinocchio_model_builder::buildModel(pinocchioModel, urdfFile, fixedJointNames, baseJointComposite, urdfModel);
@@ -16,10 +16,13 @@ namespace ocp_solver {
     std::unordered_map<std::string, size_t> jointIndexMap;
     createJointInfo(fixedJointNames, baseJointComposite, pinocchioInterfacePtr_->getModel(), jointNames, jointIndexMap);
 
-    stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidates, jointIndexMap, baseJointComposite.nq()));
-    stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidates, jointIndexMap, baseJointComposite.nq()));
+    std::vector<pinocchio::FrameIndex> contactCandidateIds;
+    for (size_t i=0; i<contactCandidates.size(); i++) contactCandidateIds.push_back(pinocchioInterfacePtr_->getModel().getFrameId(contactCandidates[i].frameName));
 
-    referenceManagerPtr_ = std::make_shared<SwitchedModelReferenceManager>(std::make_shared<ContactSchedule>(initModeSchedule, phaseTransitionIdleTime));
+    stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq()));
+    stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq()));
+
+    referenceManagerPtr_ = std::make_shared<SwitchedModelReferenceManager>();
 
     mappingPtr_.reset(new OCPPinocchioMapping(*stateConverterPtr_));
 
@@ -43,7 +46,7 @@ namespace ocp_solver {
 
   void OCPInterface::addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model) {
     for (ContactCandidate candidate : contactCandidates) {
-      pinocchio::Frame contactCenterFrame(candidate.name, model.getJointId(candidate.parentJointName), model.getFrameId(candidate.parentJointName), candidate.localPose, pinocchio::FIXED_JOINT);
+      pinocchio::Frame contactCenterFrame(candidate.frameName, model.getJointId(candidate.parentJointName), model.getFrameId(candidate.parentJointName), candidate.localPose, pinocchio::FIXED_JOINT);
       model.addFrame(contactCenterFrame);
     }
   }

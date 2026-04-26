@@ -4,18 +4,27 @@
 
 #include <ocs2_core/misc/Lookup.h>
 #include <ocs2_core/reference/ModeSchedule.h>
+#include "ocp_solver/contact_candidate.h"
 
 namespace ocp_solver {
-  class ContactSchedule {
+  struct ContactSchedule : ocs2::ModeSchedule {
   public:
-    ContactSchedule(ocs2::ModeSchedule initModeSchedule, ocs2::scalar_t phaseTransitionIdleTime);
+    ContactSchedule() : ContactSchedule(std::vector<ocs2::scalar_t>{}, std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > >{{{0, pinocchio::SE3::Identity()}}}) {}
+    ContactSchedule(std::vector<ocs2::scalar_t> eventTimes_, std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > > contactSequence_);
 
-    void setModeSchedule(const ocs2::ModeSchedule& modeSchedule) { modeSchedule_ = modeSchedule; }
+    std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > contactAtTime(ocs2::scalar_t time) const;
 
-    ocs2::ModeSchedule getModeSchedule(ocs2::scalar_t lowerBoundTime, ocs2::scalar_t upperBoundTime);
+    void clean () {
+      eventTimes.clear();
+      modeSequence.clear();
+      contactSequence.clear();
+    }
 
-  private:
-    ocs2::ModeSchedule modeSchedule_;
-    ocs2::scalar_t phaseTransitionIdleTime_;
+    // std::vector<size_t> modeSequence;  // mode sequence of size N. unused
+    std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > > contactSequence; // [0] size N. corresponding to eventTimes. [1] contact vector. [2] candidate and targetPose
   };
+  void swap(ContactSchedule& lh, ContactSchedule& rh);
+
+  std::ostream& operator<<(std::ostream& stream, const ContactSchedule& contactSchedule);
+
 }

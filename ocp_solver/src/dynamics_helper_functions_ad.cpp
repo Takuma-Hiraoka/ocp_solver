@@ -30,9 +30,9 @@ namespace ocp_solver {
 
     Eigen::Matrix<SCALAR_T, 6, 1> baseExternalForces = Eigen::Matrix<SCALAR_T, 6, 1>::Zero();
 
-    for (int i=0; i<stateConverter.contactCandidates.size(); i++) {
+    for (int i=0; i<stateConverter.contactCandidateIds.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, stateConverter.getGenCoordinatesDim());
-      pinocchio::computeFrameJacobian(model, data, q, model.getFrameId(stateConverter.contactCandidates[i].name), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      pinocchio::computeFrameJacobian(model, data, q, stateConverter.contactCandidateIds[i], pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       Eigen::Matrix<SCALAR_T, 6, 6> J_b = J.block(0, 0, 6, 6);
       baseExternalForces += J_b.transpose() * stateConverter.getContactWrench(input, i);
     }
@@ -103,10 +103,10 @@ namespace ocp_solver {
     const Eigen::Matrix<SCALAR_T, -1, 1> qd = stateConverter.getGeneralizedVelocities(state, input);
     const Eigen::Matrix<SCALAR_T, -1, 1> qdd_joints = stateConverter.getJointAccelerations(input);
 
-    std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>> wrenches(stateConverter.contactCandidates.size(), {Eigen::Matrix<SCALAR_T, 6, 1>::Zero(), ""});
+    std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>> wrenches(stateConverter.contactCandidateIds.size(), {Eigen::Matrix<SCALAR_T, 6, 1>::Zero(), 0});
     for (int i=0; i<wrenches.size(); i++) {
       wrenches[i].first = stateConverter.getContactWrench(input, i);
-      wrenches[i].second  = stateConverter.contactCandidates[i].name;
+      wrenches[i].second  = stateConverter.contactCandidateIds[i];
     }
 
     return computeJointTorques<SCALAR_T>(q, qd, qdd_joints, wrenches, pinInterface);

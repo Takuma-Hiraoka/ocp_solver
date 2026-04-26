@@ -40,7 +40,7 @@ namespace ocp_solver {
       sqpSettings_.threadPriority = 90;
     }
     ~OCPInterface() override = default;
-    void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const ocs2::ModeSchedule& initModeSchedule=ocs2::ModeSchedule(), const ocs2::scalar_t& phaseTransitionIdleTime=0.5, const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
+    void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
     std::shared_ptr<ocs2::SqpMpc> createSqpMpc();
     void addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model);
     void createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap);
@@ -51,7 +51,7 @@ namespace ocp_solver {
     const StateConverter<ocs2::scalar_t>& getStateConverter() const { return *stateConverterPtr_; }
     StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() { return *stateConverterADPtr_; }
     const StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() const { return *stateConverterADPtr_; }
-    std::shared_ptr<ocs2::ReferenceManagerInterface> getReferenceManagerPtr() const override { return referenceManagerPtr_; }
+    std::shared_ptr<SwitchedModelReferenceManager> getReferenceManagerPtr() { return referenceManagerPtr_; }
     const OCPPinocchioMapping& getMapping() const { return *mappingPtr_; }
     const ocs2::OptimalControlProblem& getOptimalControlProblem() const override { return *this->problemPtr_; }
     const ocs2::Initializer& getInitializer() const override { return *this->initializerPtr_; }

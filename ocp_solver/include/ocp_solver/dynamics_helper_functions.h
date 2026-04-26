@@ -40,27 +40,11 @@ namespace ocp_solver {
     std::vector<Eigen::Matrix<SCALAR_T, 3, 1>> getFramePositions(const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface,
                                                        std::vector<std::string> frameNames);
 
-  inline size_t numberOfLegsInContacts(const size_t& contactFlags) {
-    size_t numStanceLegs = 0;
-    // TODO
-    return numStanceLegs;
-  }
-
-  inline ocs2::vector_t gravityCompensatingInput(const ocs2::PinocchioInterface& pinocchioInterface,
-                                                const size_t& contactFlags,
-                                                const StateConverter<ocs2::scalar_t>& stateConverter) {
-    const static ocs2::scalar_t totalGravitationalForce = computeTotalMass(pinocchioInterface.getModel()) * 9.81;
-    const size_t numStanceLegs = numberOfLegsInContacts(contactFlags);
-    ocs2::vector_t input = ocs2::vector_t::Zero(stateConverter.getInputDim());
-    // TODO
-    return input;
-  }
-
   template <typename SCALAR_T>
     inline pinocchio::FrameIndex getContactFrameIndex(const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface,
                                                       const StateConverter<SCALAR_T>& stateConverter,
                                                       size_t contactIndex) {
-    return pinocchioInterface.getModel().getFrameId(stateConverter.getContactCandidates()[contactIndex].name);
+    return stateConverter.getContactCandidateIds()[contactIndex];
   }
 
   template <typename SCALAR_T>
@@ -100,7 +84,7 @@ namespace ocp_solver {
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                            const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                            const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                           const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
+                                           const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                            ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface);
 
   ///
@@ -112,7 +96,7 @@ namespace ocp_solver {
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                               const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, std::string>>& wrenches,
+                                               const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface);
 
 }
