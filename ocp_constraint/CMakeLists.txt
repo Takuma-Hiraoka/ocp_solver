@@ -31,6 +31,7 @@ add_library(${PROJECT_NAME}
   src/point_constraint.cpp
   src/position_constraint_ad.cpp
   src/swing_position_constraint_ad.cpp
+  src/joint_limit_constraint.cpp
   )
 
 target_include_directories(${PROJECT_NAME}
