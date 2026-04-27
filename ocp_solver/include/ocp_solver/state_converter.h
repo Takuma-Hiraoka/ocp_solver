@@ -162,6 +162,7 @@ namespace ocp_solver {
       state[2] += heightChange;
     }
 
+    // pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED すなわちフレーム原点, 軸が世界座標系であるため、フレーム座標系のwrenchを求めたい場合はR_f^W をかけること.
     Eigen::Matrix<SCALAR_T, 6, 1> getContactWrench(const Eigen::Matrix<SCALAR_T, -1, 1>& input, size_t contactIndex) const {
       assert(input.size() == this->input_dim);
       return input.segment(getContactWrenchStartIndices(contactIndex), 6);

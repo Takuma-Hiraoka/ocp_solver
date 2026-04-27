@@ -17,7 +17,6 @@ namespace ocp_solver {
       stateConverterPtr_(rhs.stateConverterPtr_->clone()) {}
 
   bool ZeroWrenchConstraint::isActive(ocs2::scalar_t time) const {
-    referenceManagerPtr_->isInContact(time, stateConverterPtr_->getContactCandidateIds()[contactIndex_]);
     return !referenceManagerPtr_->isInContact(time, stateConverterPtr_->getContactCandidateIds()[contactIndex_]);
   }
 
