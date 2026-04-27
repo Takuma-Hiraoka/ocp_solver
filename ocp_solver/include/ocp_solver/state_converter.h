@@ -208,7 +208,8 @@ namespace ocp_solver {
       state_dim(rhs.state_dim),
       input_dim(rhs.input_dim),
       base_dim(rhs.base_dim),
-      joint_index_map(rhs.joint_index_map){};
+      joint_index_map(rhs.joint_index_map),
+      contactCandidateIds(rhs.contactCandidateIds){};
   public:
     const size_t joint_dim;
     const size_t contact_num;
@@ -216,7 +217,7 @@ namespace ocp_solver {
     const size_t input_dim;
     const size_t base_dim;
     const std::unordered_map<std::string, size_t> joint_index_map;
-    std::vector<std::size_t> contactCandidateIds;
+    std::vector<std::size_t> contactCandidateIds; // state等のwrenchの順番はcontactCandidatesに登録された順
   };
 
 }

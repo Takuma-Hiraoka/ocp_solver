@@ -2,6 +2,7 @@
 #include "ocp_solver/system_dynamics_ad.h"
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/gravity_compensation_initializer.h"
+#include "ocp_solver/zero_wrench_constraint.h"
 
 namespace ocp_solver {
   void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
@@ -34,6 +35,10 @@ namespace ocp_solver {
     const std::string modelName = taskName + "_dynamics";
     dynamicsPtr.reset(new SystemDynamicsAD(*pinocchioInterfacePtr_, *stateConverterADPtr_, modelName, "build/cppad_autocode_gen"));
     problemPtr_->dynamicsPtr = std::move(dynamicsPtr);
+
+    for (size_t i=0; i<contactCandidates.size(); i++) {
+      problemPtr_->equalityConstraintPtr->add(contactCandidates[i].frameName + "_zero_wrench", std::unique_ptr<ocs2::StateInputConstraint>(std::make_unique<ocp_solver::ZeroWrenchConstraint>(*referenceManagerPtr_, i, *stateConverterPtr_)));
+    }
 
     problemPtr_->preComputationPtr.reset(new OCPPreComputation(*pinocchioInterfacePtr_, *stateConverterPtr_));
   }
