@@ -99,7 +99,7 @@ namespace ocp_solver {
       return state.tail(joint_dim);
     };
 
-    Eigen::Matrix<SCALAR_T, -1, 1> getGeneralizedVelocities(const Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, -1, 1>& input) {
+    Eigen::Matrix<SCALAR_T, -1, 1> getGeneralizedVelocities(const Eigen::Matrix<SCALAR_T, -1, 1>& state, const Eigen::Matrix<SCALAR_T, -1, 1>& input) const {
       assert(state.size() == this->state_dim);
       return state.tail((base_dim + joint_dim));
     };

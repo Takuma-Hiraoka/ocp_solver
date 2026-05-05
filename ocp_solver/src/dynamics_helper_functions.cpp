@@ -188,7 +188,7 @@ namespace ocp_solver {
     pinocchio::updateFramePlacements(model, data);
 
     auto setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {
-                              const auto jointIndex = model.frames[frameIndex].parent;
+                              const auto jointIndex = model.frames[frameIndex].parentJoint;
                               const Eigen::Matrix<SCALAR_T, 3, 1> translationJointFrameToContactFrame = model.frames[frameIndex].placement.translation();
                               const Eigen::Matrix<SCALAR_T, 3, 3> rotationWorldFrameToJointFrame = data.oMi[jointIndex].rotation().transpose();
                               const Eigen::Matrix<SCALAR_T, 3, 1> contactForce = rotationWorldFrameToJointFrame * wrenches[i].first.head(3);

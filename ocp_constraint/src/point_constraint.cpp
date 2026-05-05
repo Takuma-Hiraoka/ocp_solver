@@ -46,6 +46,8 @@ namespace ocp_constraint {
     approximation.f.tail<3>() = eeOrientationError.f;
     approximation.dfdx.bottomRows<3>() = eeOrientationError.dfdx;
 
+    const ocs2::VectorFunctionLinearApproximation eeVelocity = endEffectorKinematicsPtr_->getVelocityLinearApproximation(state, state).front();
+
     return approximation;
   }
 

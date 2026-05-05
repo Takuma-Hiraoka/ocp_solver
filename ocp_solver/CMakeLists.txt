@@ -29,6 +29,7 @@ foreach(dep ${dependencies})
   find_package(${dep} REQUIRED)
 endforeach()
 
+message(WARNING "pinocchiodir ${pinocchio_DIR}")
 add_library(${PROJECT_NAME}
   src/switched_model_reference_manager.cpp
   src/contact_schedule.cpp

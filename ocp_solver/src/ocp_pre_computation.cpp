@@ -3,10 +3,12 @@
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/frames-derivatives.hpp>
 
 #include <ocs2_core/misc/Numerics.h>
 
 #include "ocp_solver/ocp_pre_computation.h"
+#include "ocp_solver/dynamics_helper_functions_ad.h"
 
 namespace ocp_solver {
 
@@ -29,12 +31,13 @@ namespace ocp_solver {
     return new OCPPreComputation(*this);
   }
 
-  void OCPPreComputation::updatePinocchioModelKinematics(const ocs2::vector_t& q) {
+  void OCPPreComputation::updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a) {
     const pinocchio::Model& model = pinocchioInterface_.getModel();
     pinocchio::Data& data = pinocchioInterface_.getData();
 
-    pinocchio::forwardKinematics(model, data, q);
+    pinocchio::forwardKinematics(model, data, q, v, a);
     pinocchio::computeJointJacobians(model, data, q);
+    pinocchio::computeJointJacobiansTimeVariation(model, data, q, v);
     pinocchio::updateFramePlacements(model, data);
   }
 
@@ -43,7 +46,9 @@ namespace ocp_solver {
       return;
     }
 
-    updatePinocchioModelKinematics(stateConverterPtr_->getGeneralizedCoordinates(x));
+    StateConverter<ocs2::scalar_t>& sc = const_cast<StateConverter<ocs2::scalar_t>&>(*stateConverterPtr_);
+    ocs2::vector_t a = computeGeneralizedAccelerations(x, u, pinocchioInterface_, sc);
+    updatePinocchioModelKinematics(stateConverterPtr_->getGeneralizedCoordinates(x), stateConverterPtr_->getGeneralizedVelocities(x, u), a);
 
     if (request.contains(ocs2::Request::Constraint)) {
       for (size_t i = 0; i < stateConverterPtr_->getContactNum(); i++) {

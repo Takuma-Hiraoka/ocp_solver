@@ -22,7 +22,7 @@ namespace ocp_solver {
   protected:
     OCPPreComputation(const OCPPreComputation& rhs);
 
-    void updatePinocchioModelKinematics(const ocs2::vector_t& generalizedCoordinates);
+    void updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a);
 
     mutable ocs2::PinocchioInterface pinocchioInterface_;
     const StateConverter<ocs2::scalar_t>* stateConverterPtr_;
