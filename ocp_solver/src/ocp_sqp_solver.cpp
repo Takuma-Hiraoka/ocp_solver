@@ -8,9 +8,16 @@
 #include "ocp_solver/ocp_sqp_solver.h"
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/ocp_transcription.h"
+#include "ocp_solver/ocp_sensitivity_integrator.h"
 
 namespace ocp_solver {
   // use pinocchio::diference
+  OcpSqpSolver::OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer)
+    : SqpSolver(settings, optimalControlProblem, initializer) {
+    sensitivityDiscretizer_ = ocp_solver::selectDynamicsSensitivityDiscretization(settings_.integratorType);
+  }
+
+
   void OcpSqpSolver::runImpl(ocs2::scalar_t initTime, const ocs2::vector_t& initState, ocs2::scalar_t finalTime) {
     if (settings_.printSolverStatus || settings_.printLinesearch) {
       std::cerr << "\n++++++++++++++++++++++++++++++++++++++++++++++++++++++";

@@ -5,6 +5,8 @@
 
 namespace ocp_solver {
   class OcpSqpSolver : public ocs2::SqpSolver {
+  public:
+    OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer);
   private:
     void runImpl(ocs2::scalar_t initTime, const ocs2::vector_t& initState, ocs2::scalar_t finalTime) override;
 

@@ -44,6 +44,7 @@ add_library(${PROJECT_NAME}
   src/zero_wrench_constraint.cpp
   src/ocp_sqp_solver.cpp
   src/ocp_transcription.cpp
+  src/ocp_sensitivity_integrator.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

@@ -21,6 +21,8 @@ namespace ocp_solver {
 
     SystemDynamicsAD* clone() const override { return new SystemDynamicsAD(*this); }
 
+    ocs2::PinocchioInterface& getPinocchioInterface() { return pinInterface_;}
+
     ocs2::ad_vector_t systemFlowMap(ocs2::ad_scalar_t time,
                                     const ocs2::ad_vector_t& state,
                                     const ocs2::ad_vector_t& input,
@@ -28,6 +30,7 @@ namespace ocp_solver {
 
   private:
     ocs2::PinocchioInterfaceCppAd pinInterfaceCppAd;
+    ocs2::PinocchioInterface pinInterface_;
     StateConverter<ocs2::ad_scalar_t>& stateConverter_;
   };
 }
