@@ -43,6 +43,7 @@ add_library(${PROJECT_NAME}
   src/pinocchio_endeffector_dynamics_cppad.cpp
   src/zero_wrench_constraint.cpp
   src/ocp_sqp_solver.cpp
+  src/ocp_transcription.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

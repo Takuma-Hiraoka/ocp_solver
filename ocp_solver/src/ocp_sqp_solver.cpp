@@ -7,6 +7,7 @@
 #include <ocs2_oc/trajectory_adjustment/TrajectorySpreadingHelperFunctions.h>
 #include "ocp_solver/ocp_sqp_solver.h"
 #include "ocp_solver/ocp_pre_computation.h"
+#include "ocp_solver/ocp_transcription.h"
 
 namespace ocp_solver {
   // use pinocchio::diference
@@ -133,7 +134,7 @@ namespace ocp_solver {
                           while (i < N) {
                             if (time[i].event == ocs2::AnnotatedTime::Event::PreEvent) {
                               // Event node
-                              auto result = ocs2::multiple_shooting::setupEventNode(ocpDefinition, time[i].time, x[i], x[i + 1]);
+                              auto result = setupEventNode(ocpDefinition, time[i].time, x[i], x[i + 1]);
                               metrics[i] = ocs2::multiple_shooting::computeMetrics(result);
                               workerPerformance += ocs2::multiple_shooting::computePerformanceIndex(result);
                               cost_[i] = std::move(result.cost);
@@ -147,7 +148,7 @@ namespace ocp_solver {
                               // Normal, intermediate node
                               const ocs2::scalar_t ti = getIntervalStart(time[i]);
                               const ocs2::scalar_t dt = getIntervalDuration(time[i], time[i + 1]);
-                              auto result = ocs2::multiple_shooting::setupIntermediateNode(ocpDefinition, sensitivityDiscretizer_, ti, dt, x[i], x[i + 1], u[i]);
+                              auto result = setupIntermediateNode(ocpDefinition, sensitivityDiscretizer_, ti, dt, x[i], x[i + 1], u[i]);
                               metrics[i] = ocs2::multiple_shooting::computeMetrics(result);
                               workerPerformance += ocs2::multiple_shooting::computePerformanceIndex(result, dt);
                               if (settings_.projectStateInputEqualityConstraints) {
