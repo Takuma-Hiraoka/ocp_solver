@@ -25,6 +25,7 @@ namespace ocp_solver {
 
     size_t getStateDim() const { return state_dim; };
     size_t getInputDim() const { return input_dim; };
+    size_t getTangentDim() const { return state_dim; }; // TODO
     size_t getBaseDim() const { return base_dim; };
     size_t getJointDim() const { return joint_dim; };
     size_t getContactNum() const { return contact_num; };
