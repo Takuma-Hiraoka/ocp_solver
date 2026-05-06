@@ -31,7 +31,7 @@ namespace ocp_solver {
     Eigen::Matrix<SCALAR_T, 6, 1> baseExternalForces = Eigen::Matrix<SCALAR_T, 6, 1>::Zero();
 
     for (int i=0; i<stateConverter.contactCandidateIds.size(); i++) {
-      Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, stateConverter.getGenCoordinatesDim());
+      Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, stateConverter.getTangentDim());
       pinocchio::computeFrameJacobian(model, data, q, stateConverter.contactCandidateIds[i], pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       Eigen::Matrix<SCALAR_T, 6, 6> J_b = J.block(0, 0, 6, 6);
       baseExternalForces += J_b.transpose() * stateConverter.getContactWrench(input, i);
@@ -81,7 +81,7 @@ namespace ocp_solver {
       state_derivative.segment(3, 3) = state.segment(stateConverter.getGenCoordinatesDim() + 3, 3);
     }
     state_derivative.segment(stateConverter.getBaseVDim(), stateConverter.getJointDim()) = stateConverter.getJointVelocities(state, input);
-    state_derivative.tail(stateConverter.getGenCoordinatesDim()) =
+    state_derivative.tail(stateConverter.getTangentDim()) =
       computeGeneralizedAccelerations<SCALAR_T>(state, input, pinInterface, stateConverter);
     return state_derivative;
   }
