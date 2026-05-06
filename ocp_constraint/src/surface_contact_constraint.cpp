@@ -64,7 +64,7 @@ namespace ocp_constraint {
 
     ocs2::VectorFunctionLinearApproximation approx;
     approx.f = coef_ * R * stateConverterPtr_->getContactWrench(input, contactIndex_);
-    approx.dfdx = ocs2::matrix_t::Zero(n_constraints, stateConverterPtr_->getStateDim());
+    approx.dfdx = ocs2::matrix_t::Zero(n_constraints, stateConverterPtr_->getStateVariableDim());
     approx.dfdu = ocs2::matrix_t::Zero(n_constraints, stateConverterPtr_->getInputDim());
     approx.dfdu.middleCols<6>(6 * contactIndex_) = coef_ * R;
     return approx;

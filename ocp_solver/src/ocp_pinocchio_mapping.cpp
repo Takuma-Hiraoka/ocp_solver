@@ -23,10 +23,10 @@ namespace ocp_solver {
 
   template <typename SCALAR>
   auto OCPPinocchioMappingTpl<SCALAR>::getOcs2Jacobian(const vector_t& state, const matrix_t& Jq, const matrix_t& Jv) const -> std::pair<matrix_t, matrix_t> {
-    matrix_t dfdx(Jq.rows(), stateConverterPtr_->getStateDim());
+    matrix_t dfdx(Jq.rows(), stateConverterPtr_->getStateVariableDim());
     matrix_t dfdu(0, stateConverterPtr_->getInputDim());
-    dfdx.leftCols(stateConverterPtr_->getGenCoordinatesDim()) = Jq;
-    dfdx.rightCols(stateConverterPtr_->getGenCoordinatesDim()) = Jv;
+    dfdx.leftCols(stateConverterPtr_->getTangentDim()) = Jq;
+    dfdx.rightCols(stateConverterPtr_->getTangentDim()) = Jv;
     return {dfdx, dfdu};
   }
 

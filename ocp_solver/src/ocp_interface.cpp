@@ -20,8 +20,8 @@ namespace ocp_solver {
     std::vector<pinocchio::FrameIndex> contactCandidateIds;
     for (size_t i=0; i<contactCandidates.size(); i++) contactCandidateIds.push_back(pinocchioInterfacePtr_->getModel().getFrameId(contactCandidates[i].frameName));
 
-    stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq()));
-    stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq()));
+    stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq(), baseJointComposite.nv()));
+    stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq(), baseJointComposite.nv()));
 
     referenceManagerPtr_ = std::make_shared<SwitchedModelReferenceManager>();
 

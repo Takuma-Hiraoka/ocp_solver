@@ -54,8 +54,8 @@ namespace ocp_solver {
                                                                  const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                                  StateConverter<SCALAR_T>& stateConverter) {
     // Generalized Accelerations = [ddq_base, ddq_joints]
-    Eigen::Matrix<SCALAR_T, -1, 1> generalizedAccelerations = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(stateConverter.getGenCoordinatesDim());
-    if (stateConverter.getBaseDim() == 6) generalizedAccelerations.head(6) = computeBaseAcceleration<SCALAR_T>(state, input, pinInterface, stateConverter);
+    Eigen::Matrix<SCALAR_T, -1, 1> generalizedAccelerations = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(stateConverter.getTangentDim());
+    if (stateConverter.getBaseVDim() == 6) generalizedAccelerations.head(6) = computeBaseAcceleration<SCALAR_T>(state, input, pinInterface, stateConverter);
     generalizedAccelerations.tail(stateConverter.getJointDim()) = stateConverter.getJointAccelerations(input);
     return generalizedAccelerations;
   }
@@ -74,13 +74,13 @@ namespace ocp_solver {
                                                         const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                         StateConverter<SCALAR_T>& stateConverter) {
     // State derivative = [dq; ddq_base, ddq_joints]
-    Eigen::Matrix<SCALAR_T, -1, 1> state_derivative = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(stateConverter.getStateDim());
-    if (stateConverter.getBaseDim() == 6) {
+    Eigen::Matrix<SCALAR_T, -1, 1> state_derivative = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(stateConverter.getStateVariableDim());
+    if (stateConverter.getBaseVDim() == 6) {
       state_derivative.head(3) = state.segment(stateConverter.getGenCoordinatesDim(), 3);
       // Derivatives of the euler angles ZYX
       state_derivative.segment(3, 3) = state.segment(stateConverter.getGenCoordinatesDim() + 3, 3);
     }
-    state_derivative.segment(stateConverter.getBaseDim(), stateConverter.getJointDim()) = stateConverter.getJointVelocities(state, input);
+    state_derivative.segment(stateConverter.getBaseVDim(), stateConverter.getJointDim()) = stateConverter.getJointVelocities(state, input);
     state_derivative.tail(stateConverter.getGenCoordinatesDim()) =
       computeGeneralizedAccelerations<SCALAR_T>(state, input, pinInterface, stateConverter);
     return state_derivative;

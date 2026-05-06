@@ -9,7 +9,12 @@ namespace ocp_solver {
                                const std::string& modelFolder,
                                const bool& recompileLibraries,
                                const bool& verbose)
-    : SystemDynamicsBaseAD(), pinInterface_(pinocchioInterface), pinInterfaceCppAd(pinocchioInterface.toCppAd()), stateConverter_(stateConverter) {
+    : SystemDynamicsBaseAD(),
+      pinInterface_(pinocchioInterface),
+      pinInterfaceCppAd(pinocchioInterface.toCppAd()),
+      stateConverter_(stateConverter),
+      numFlowMapParameters_(stateConverter_.getStateDim()),
+      numJumpMapParameters_(stateConverter_.getStateDim()) {
     initialize(stateConverter_.getTangentDim(), stateConverter_.getInputDim(), modelName, modelFolder, recompileLibraries, verbose);
   }
 

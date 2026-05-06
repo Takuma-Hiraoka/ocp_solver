@@ -33,7 +33,7 @@ namespace ocp_solver {
                                                                                        const ocs2::PreComputation& preComp) const {
     ocs2::VectorFunctionLinearApproximation approx;
     approx.f = getValue(time, state, input, preComp);
-    approx.dfdx = ocs2::matrix_t::Zero(n_constraints, stateConverterPtr_->getStateDim());
+    approx.dfdx = ocs2::matrix_t::Zero(n_constraints, stateConverterPtr_->getStateVariableDim());
     approx.dfdu = ocs2::matrix_t::Zero(n_constraints, stateConverterPtr_->getInputDim());
     approx.dfdu.middleCols<n_constraints>(n_constraints * contactIndex_).diagonal() = ocs2::vector_t::Ones(n_constraints);
     return approx;

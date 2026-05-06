@@ -24,7 +24,7 @@ namespace ocp_constraint {
       pinocchioInterfaceCppAd_(pinocchioInterface.toCppAd()),
       stateConverterPtr_(stateConverter.clone()) {
     assert(weights.size() == stateConverter.getJointDim());
-    initialize(stateConverter.getStateDim(), stateConverter.getInputDim(), stateConverter.getJointDim(), costName,
+    initialize(stateConverter.getStateVariableDim(), stateConverter.getInputDim(), stateConverter.getJointDim(), costName,
                modelFolder, recompileLibrariesCppAd);
   }
 

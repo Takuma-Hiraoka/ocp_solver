@@ -34,15 +34,6 @@ namespace ocp_solver {
                                       bool recompileLibraries = false,
                                       bool verbose = false);
 
-    PinocchioEndEffectorDynamicsCppAd(const ocs2::PinocchioInterface& pinocchioInterface,
-                                      StateConverter<ocs2::ad_scalar_t>& stateConverter,
-                                      std::vector<std::string> endEffectorIds,
-                                      update_pinocchio_interface_callback updateCallback,
-                                      const std::string& modelName,
-                                      const std::string& modelFolder = "build/cppad_autocode_gen",
-                                      bool recompileLibraries = false,
-                                      bool verbose = false);
-
     ~PinocchioEndEffectorDynamicsCppAd() override = default;
     PinocchioEndEffectorDynamicsCppAd* clone() const override;
     PinocchioEndEffectorDynamicsCppAd& operator=(const PinocchioEndEffectorDynamicsCppAd&) = delete;
@@ -77,15 +68,15 @@ namespace ocp_solver {
     std::vector<ocs2::VectorFunctionLinearApproximation> getAccelerationsLinearApproximation(const vector_t& state,
                                                                                              const vector_t& input) const;
 
-    ocs2::ad_vector_t getPositionCppAd(const ocs2::ad_vector_t& state);
-    ocs2::ad_vector_t getVelocityCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& input);
-    ocs2::ad_vector_t getOrientationCppAd(const ocs2::ad_vector_t& state);
-    ocs2::ad_vector_t getOrientationErrorCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& params);
-    ocs2::ad_vector_t getAngularVelocityCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& input);
-    ocs2::ad_vector_t getTwistCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& input);
-    ocs2::ad_vector_t getLinearAccelerationCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& input);
-    ocs2::ad_vector_t getAngularAccelerationCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& input);
-    ocs2::ad_vector_t getAccelerationsCppAd(const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& input);
+    ocs2::ad_vector_t getPositionCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getVelocityCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getOrientationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getOrientationErrorCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& params);
+    ocs2::ad_vector_t getAngularVelocityCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getTwistCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getLinearAccelerationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getAngularAccelerationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
+    ocs2::ad_vector_t getAccelerationsCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
 
   private:
     PinocchioEndEffectorDynamicsCppAd(const PinocchioEndEffectorDynamicsCppAd& rhs);

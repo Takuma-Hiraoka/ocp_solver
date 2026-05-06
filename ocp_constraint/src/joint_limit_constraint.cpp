@@ -45,7 +45,7 @@ namespace ocp_constraint {
     const ocs2::vector_t upperBoundPositionOffset = positionLimits_.second - jointPositions;
     const ocs2::vector_t lowerBoundPositionOffset = jointPositions - positionLimits_.first;
 
-    const size_t stateDim = stateConverterPtr_->getStateDim();
+    const size_t stateDim = stateConverterPtr_->getStateVariableDim();
     const size_t jointDim = stateConverterPtr_->getJointDim();
     const size_t jointStartIndex = stateConverterPtr_->getJointStartindex();
 
