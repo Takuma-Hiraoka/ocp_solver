@@ -9,6 +9,7 @@
 #include "ocp_solver/contact_candidate.h"
 #include "ocp_solver/switched_model_reference_manager.h"
 #include "ocp_solver/ocp_pinocchio_mapping.h"
+#include "ocp_solver/ocp_sqp_mpc.h"
 
 namespace ocp_solver {
   static pinocchio::JointModelComposite getBaseJointcomposite() {
@@ -41,7 +42,7 @@ namespace ocp_solver {
     }
     ~OCPInterface() override = default;
     void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const pinocchio::JointModelComposite& baseJointComposite=getBaseJointcomposite());
-    std::shared_ptr<ocs2::SqpMpc> createSqpMpc();
+    std::shared_ptr<OcpSqpMpc> createSqpMpc();
     void addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model);
     void createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap);
 

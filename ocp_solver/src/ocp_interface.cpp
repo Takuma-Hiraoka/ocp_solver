@@ -1,4 +1,5 @@
 #include "ocp_solver/ocp_interface.h"
+#include "ocp_solver/ocp_sqp_solver.h"
 #include "ocp_solver/system_dynamics_ad.h"
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/gravity_compensation_initializer.h"
@@ -43,8 +44,8 @@ namespace ocp_solver {
     problemPtr_->preComputationPtr.reset(new OCPPreComputation(*pinocchioInterfacePtr_, *stateConverterPtr_));
   }
 
-  std::shared_ptr<ocs2::SqpMpc> OCPInterface::createSqpMpc() {
-    std::shared_ptr<ocs2::SqpMpc> mpc = std::make_shared<ocs2::SqpMpc>(mpcSettings_, sqpSettings_, *problemPtr_, *initializerPtr_);
+  std::shared_ptr<OcpSqpMpc> OCPInterface::createSqpMpc() {
+    std::shared_ptr<OcpSqpMpc> mpc = std::make_shared<OcpSqpMpc>(mpcSettings_, sqpSettings_, *problemPtr_, *initializerPtr_);
     mpc->getSolverPtr()->setReferenceManager(referenceManagerPtr_);
     return mpc;
   }
