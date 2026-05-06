@@ -45,6 +45,8 @@ add_library(${PROJECT_NAME}
   src/ocp_sqp_solver.cpp
   src/ocp_transcription.cpp
   src/ocp_sensitivity_integrator.cpp
+  src/quadratic_state_cost.cpp
+  src/quadratic_state_input_cost.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

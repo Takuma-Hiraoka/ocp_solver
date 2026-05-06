@@ -47,7 +47,7 @@ namespace ocp_constraint {
 
     const size_t stateDim = stateConverterPtr_->getStateVariableDim();
     const size_t jointDim = stateConverterPtr_->getJointDim();
-    const size_t jointStartIndex = stateConverterPtr_->getJointStartindex();
+    const size_t jointStartIndex = stateConverterPtr_->getBaseVDim();
 
     ocs2::ScalarFunctionQuadraticApproximation cost;
     cost.f = upperBoundPositionOffset.unaryExpr([&](ocs2::scalar_t hi) { return penaltyPtr_->getValue(0.0, hi); }).sum() +
