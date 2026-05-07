@@ -23,16 +23,28 @@ namespace ocp_solver {
                                                  const ocs2::ad_vector_t& input,
                                                  const ocs2::ad_vector_t& parameters) const {
     ocs2::ad_vector_t q_v_state(pinInterfaceCppAd.getModel().nq + pinInterfaceCppAd.getModel().nv);
-    q_v_state.head(pinInterfaceCppAd.getModel().nq) = pinocchio::integrate(pinInterfaceCppAd.getModel(), parameters, state.head(pinInterfaceCppAd.getModel().nv));
+    q_v_state.head(pinInterfaceCppAd.getModel().nq) = pinocchio::integrate(pinInterfaceCppAd.getModel(), parameters.head(pinInterfaceCppAd.getModel().nq), state.head(pinInterfaceCppAd.getModel().nv));
     q_v_state.tail(pinInterfaceCppAd.getModel().nv) = state.tail(pinInterfaceCppAd.getModel().nv);
     return computeStateDerivative<ocs2::ad_scalar_t>(q_v_state, input, pinInterfaceCppAd, stateConverter_);
   }
 
   ocs2::ad_vector_t SystemDynamicsAD::systemJumpMap(ocs2::ad_scalar_t time, const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& parameters) const {
     ocs2::ad_vector_t q_v_state(pinInterfaceCppAd.getModel().nq + pinInterfaceCppAd.getModel().nv);
-    q_v_state.head(pinInterfaceCppAd.getModel().nq) = pinocchio::integrate(pinInterfaceCppAd.getModel(), parameters, state.head(pinInterfaceCppAd.getModel().nv));
+    q_v_state.head(pinInterfaceCppAd.getModel().nq) = pinocchio::integrate(pinInterfaceCppAd.getModel(), parameters.head(pinInterfaceCppAd.getModel().nq), state.head(pinInterfaceCppAd.getModel().nv));
     q_v_state.tail(pinInterfaceCppAd.getModel().nv) = state.tail(pinInterfaceCppAd.getModel().nv);
     return q_v_state;
+  }
+
+  ocs2::vector_t SystemDynamicsAD::computeFlowMap(ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, const ocs2::PreComputation& preComputation) {
+    ocs2::vector_t dx = ocs2::vector_t::Zero(2*pinInterface_.getModel().nv);
+    tapedTimeStateInput_ << t, dx, u;
+    return flowMapADInterfacePtr_->getFunctionValue(tapedTimeStateInput_, x);
+  }
+
+  ocs2::vector_t SystemDynamicsAD::computeJumpMap(ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::PreComputation& preComputation) {
+    ocs2::vector_t dx = ocs2::vector_t::Zero(2*pinInterface_.getModel().nv);
+    tapedTimeState_ << t, dx;
+  return jumpMapADInterfacePtr_->getFunctionValue(tapedTimeState_, x);
   }
 
   ocs2::VectorFunctionLinearApproximation SystemDynamicsAD::linearApproximation(ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u,

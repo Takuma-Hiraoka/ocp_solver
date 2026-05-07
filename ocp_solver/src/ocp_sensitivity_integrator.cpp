@@ -3,6 +3,84 @@
 #include "ocp_solver/system_dynamics_ad.h"
 
 namespace ocp_solver {
+  ocs2::DynamicsDiscretizer selectDynamicsDiscretization(ocs2::SensitivityIntegratorType integratorType) {
+    switch (integratorType) {
+    case ocs2::SensitivityIntegratorType::EULER:
+      return eulerDiscretization;
+    case ocs2::SensitivityIntegratorType::RK2:
+      return rk2Discretization;
+    case ocs2::SensitivityIntegratorType::RK4:
+      return rk4Discretization;
+    default:
+      throw std::runtime_error("Integrator of type not supported.");
+    }
+  }
+
+  ocs2::vector_t eulerDiscretization(ocs2::SystemDynamicsBase& system, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, ocs2::scalar_t dt) {
+    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+
+    ocs2::vector_t dx = system.computeFlowMap(t, x, u);
+    ocs2::vector_t tmp = ocs2::vector_t::Zero(x.size());
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt * dx.head(pinocchioInterface.getModel().nv));
+    tmp.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * dx.tail(pinocchioInterface.getModel().nv);
+    return tmp;
+  }
+
+  ocs2::vector_t rk2Discretization(ocs2::SystemDynamicsBase& system, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, ocs2::scalar_t dt) {
+    const ocs2::scalar_t dt_halve = dt / 2.0;
+    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+
+    // System evaluations
+    ocs2::vector_t k1 = system.computeFlowMap(t, x, u);
+    ocs2::vector_t tmpV = x;
+    tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt * k1.head(pinocchioInterface.getModel().nv));
+    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * k1.tail(pinocchioInterface.getModel().nv);
+    ocs2::vector_t k2 = system.computeFlowMap(t + dt, tmpV, u);
+
+    tmpV = ocs2::vector_t::Zero(x.size());
+    tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt_halve * k1.head(pinocchioInterface.getModel().nv));
+    tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), tmpV.head(pinocchioInterface.getModel().nq), dt_halve * k2.head(pinocchioInterface.getModel().nv));
+    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt_halve * k1.tail(pinocchioInterface.getModel().nv);
+    tmpV.tail(pinocchioInterface.getModel().nv) += dt_halve * k2.tail(pinocchioInterface.getModel().nv);
+
+    return tmpV;
+  }
+
+  ocs2::vector_t rk4Discretization(ocs2::SystemDynamicsBase& system, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, ocs2::scalar_t dt) {
+    const ocs2::scalar_t dt_halve = dt / 2.0;
+    const ocs2::scalar_t dt_sixth = dt / 6.0;
+    const ocs2::scalar_t dt_third = dt / 3.0;
+
+    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    // System evaluations
+    const ocs2::vector_t k1 = system.computeFlowMap(t, x, u);
+    ocs2::vector_t tmp = x;
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt_halve * k1.head(pinocchioInterface.getModel().nv));
+    tmp.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt_halve * k1.tail(pinocchioInterface.getModel().nv);
+    const ocs2::vector_t k2 = system.computeFlowMap(t + dt_halve, tmp, u);
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt_halve * k2.head(pinocchioInterface.getModel().nv));
+    tmp.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt_halve * k2.tail(pinocchioInterface.getModel().nv);
+    const ocs2::vector_t k3 = system.computeFlowMap(t + dt_halve, tmp, u);
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt * k3.head(pinocchioInterface.getModel().nv));
+    tmp.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * k3.tail(pinocchioInterface.getModel().nv);
+    const ocs2::vector_t k4 = system.computeFlowMap(t + dt, tmp, u);
+
+    tmp = ocs2::vector_t::Zero(x.size());
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt_sixth * k1.head(pinocchioInterface.getModel().nv));
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), tmp.head(pinocchioInterface.getModel().nq), dt_third * k2.head(pinocchioInterface.getModel().nv));
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), tmp.head(pinocchioInterface.getModel().nq), dt_third * k3.head(pinocchioInterface.getModel().nv));
+    tmp.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), tmp.head(pinocchioInterface.getModel().nq), dt_sixth * k4.head(pinocchioInterface.getModel().nv));
+    tmp.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt_sixth * k1.tail(pinocchioInterface.getModel().nv);
+    tmp.tail(pinocchioInterface.getModel().nv) += dt_third * k2.tail(pinocchioInterface.getModel().nv);
+    tmp.tail(pinocchioInterface.getModel().nv) += dt_third * k3.tail(pinocchioInterface.getModel().nv);
+    tmp.tail(pinocchioInterface.getModel().nv) += dt_sixth * k4.tail(pinocchioInterface.getModel().nv);
+
+
+    tmp = x + dt_sixth * tmp + dt_third * k2 + dt_third * k3 + dt_sixth * k4;
+    return tmp;
+  }
+
+
   ocs2::DynamicsSensitivityDiscretizer selectDynamicsSensitivityDiscretization(ocs2::SensitivityIntegratorType integratorType) {
     switch (integratorType) {
     case ocs2::SensitivityIntegratorType::EULER:
@@ -41,7 +119,10 @@ namespace ocp_solver {
 
     // System evaluations
     ocs2::VectorFunctionLinearApproximation k1 = system.linearApproximation(t, x, u);
-    ocs2::VectorFunctionLinearApproximation k2 = system.linearApproximation(t + dt, x + dt * k1.f, u);
+    ocs2::vector_t tmpV = x;
+    tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt * k1.f.head(pinocchioInterface.getModel().nv));
+    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * k1.f.tail(pinocchioInterface.getModel().nv);
+    ocs2::VectorFunctionLinearApproximation k2 = system.linearApproximation(t + dt, tmpV, u);
 
     // Input sensitivity \dot{Su} = dfdx(t) Su + dfdu(t), with Su(0) = Zero()
     // Re-use memory from k.dfdu as dkduk
@@ -80,10 +161,10 @@ namespace ocp_solver {
     ocs2::VectorFunctionLinearApproximation k1 = system.linearApproximation(t, x, u);
     ocs2::vector_t tmpV = x;
     tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt_halve * k1.f.head(pinocchioInterface.getModel().nv));
-    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * k1.f.tail(pinocchioInterface.getModel().nv);
+    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt_halve * k1.f.tail(pinocchioInterface.getModel().nv);
     ocs2::VectorFunctionLinearApproximation k2 = system.linearApproximation(t + dt_halve, tmpV, u);
     tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt_halve * k2.f.head(pinocchioInterface.getModel().nv));
-    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * k2.f.tail(pinocchioInterface.getModel().nv);
+    tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt_halve * k2.f.tail(pinocchioInterface.getModel().nv);
     ocs2::VectorFunctionLinearApproximation k3 = system.linearApproximation(t + dt_halve, tmpV, u);
     tmpV.head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), x.head(pinocchioInterface.getModel().nq), dt * k3.f.head(pinocchioInterface.getModel().nv));
     tmpV.tail(pinocchioInterface.getModel().nv) = x.tail(pinocchioInterface.getModel().nv) + dt * k3.f.tail(pinocchioInterface.getModel().nv);

@@ -9,11 +9,13 @@
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/ocp_transcription.h"
 #include "ocp_solver/ocp_sensitivity_integrator.h"
+#include "ocp_solver/ocp_metrics_computation.h"
 
 namespace ocp_solver {
   // use pinocchio::diference
   OcpSqpSolver::OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer)
     : SqpSolver(settings, optimalControlProblem, initializer) {
+    discretizer_ = ocp_solver::selectDynamicsDiscretization(settings_.integratorType);
     sensitivityDiscretizer_ = ocp_solver::selectDynamicsSensitivityDiscretization(settings_.integratorType);
   }
 
@@ -202,6 +204,57 @@ namespace ocp_solver {
     ocs2::PerformanceIndex totalPerformance = std::accumulate(std::next(performance.begin()), performance.end(), performance.front());
     totalPerformance.merit = totalPerformance.cost + totalPerformance.equalityLagrangian + totalPerformance.inequalityLagrangian;
 
+    return totalPerformance;
+  }
+
+  ocs2::PerformanceIndex OcpSqpSolver::computePerformance(const std::vector<ocs2::AnnotatedTime>& time, const ocs2::vector_t& initState, const ocs2::vector_array_t& x,
+                                                          const ocs2::vector_array_t& u, std::vector<ocs2::Metrics>& metrics) {
+    // Problem size
+    const int N = static_cast<int>(time.size()) - 1;
+    metrics.resize(N + 1);
+
+    std::vector<ocs2::PerformanceIndex> performance(settings_.nThreads, ocs2::PerformanceIndex());
+    std::atomic_int timeIndex{0};
+    auto parallelTask = [&](int workerId) {
+                          // Get worker specific resources
+                          ocs2::OptimalControlProblem& ocpDefinition = ocpDefinitions_[workerId];
+
+                          int i = timeIndex++;
+                          while (i < N) {
+                            if (time[i].event == ocs2::AnnotatedTime::Event::PreEvent) {
+                              // Event node
+                              metrics[i] = computeEventMetrics(ocpDefinition, time[i].time, x[i], x[i + 1]);
+                              performance[workerId] += toPerformanceIndex(metrics[i]);
+                            } else {
+                              // Normal, intermediate node
+                              const ocs2::scalar_t ti = getIntervalStart(time[i]);
+                              const ocs2::scalar_t dt = getIntervalDuration(time[i], time[i + 1]);
+                              metrics[i] = computeIntermediateMetrics(ocpDefinition, discretizer_, ti, dt, x[i], x[i + 1], u[i]);
+                              performance[workerId] += toPerformanceIndex(metrics[i], dt);
+                            }
+
+                            i = timeIndex++;
+                          }
+
+                          if (i == N) {  // Only one worker will execute this
+                            const ocs2::scalar_t tN = getIntervalStart(time[N]);
+                            metrics[N] = computeTerminalMetrics(ocpDefinition, tN, x[N]);
+                            performance[workerId] += toPerformanceIndex(metrics[N]);
+                          }
+                        };
+    runParallel(std::move(parallelTask));
+
+    // Account for initial state in performance
+    ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
+    ocs2::vector_t initDynamicsViolation(2*pinocchioInterface.getModel().nv);
+    initDynamicsViolation.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x[0].head(pinocchioInterface.getModel().nq), initState.head(pinocchioInterface.getModel().nq));
+    initDynamicsViolation.tail(pinocchioInterface.getModel().nv) = initState.tail(pinocchioInterface.getModel().nv) - x[0].tail(pinocchioInterface.getModel().nv);
+    metrics.front().dynamicsViolation += initDynamicsViolation;
+    performance.front().dynamicsViolationSSE += initDynamicsViolation.squaredNorm();
+
+    // Sum performance of the threads
+    ocs2::PerformanceIndex totalPerformance = std::accumulate(std::next(performance.begin()), performance.end(), performance.front());
+    totalPerformance.merit = totalPerformance.cost + totalPerformance.equalityLagrangian + totalPerformance.inequalityLagrangian;
     return totalPerformance;
   }
 

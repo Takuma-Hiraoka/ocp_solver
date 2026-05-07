@@ -12,6 +12,8 @@ namespace ocp_solver {
 
     ocs2::PerformanceIndex setupQuadraticSubproblem(const std::vector<ocs2::AnnotatedTime>& time, const ocs2::vector_t& initState, const ocs2::vector_array_t& x, const ocs2::vector_array_t& u, std::vector<ocs2::Metrics>& metrics);
 
+    ocs2::PerformanceIndex computePerformance(const std::vector<ocs2::AnnotatedTime>& time, const ocs2::vector_t& initState, const ocs2::vector_array_t& x, const ocs2::vector_array_t& u, std::vector<ocs2::Metrics>& metrics);
+
     void incrementStateTrajectory(const ocs2::vector_array_t& v, const ocs2::vector_array_t& dv, const ocs2::scalar_t alpha, ocs2::vector_array_t& vNew);
 
     ocs2::sqp::StepInfo takeStep(const ocs2::PerformanceIndex& baseline, const std::vector<ocs2::AnnotatedTime>& timeDiscretization, const ocs2::vector_t& initState,

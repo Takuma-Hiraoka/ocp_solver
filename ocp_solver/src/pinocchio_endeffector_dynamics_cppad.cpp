@@ -162,7 +162,7 @@ namespace ocp_solver {
   }
 
   auto PinocchioEndEffectorDynamicsCppAd::getPosition(const vector_t& state) const -> std::vector<vector3_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t positionValues = positionCppAdInterfacePtr_->getFunctionValue(dx, state);
 
     std::vector<vector3_t> positions;
@@ -175,7 +175,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getPositionLinearApproximation(
                                                                                                                          const vector_t& state) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t positionValues = positionCppAdInterfacePtr_->getFunctionValue(dx, state);
     const ocs2::matrix_t positionJacobian = positionCppAdInterfacePtr_->getJacobian(dx, state);
 
@@ -208,7 +208,7 @@ namespace ocp_solver {
   }
 
   auto PinocchioEndEffectorDynamicsCppAd::getVelocity(const vector_t& state, const vector_t& input) const -> std::vector<vector3_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = velocityCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -223,7 +223,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getVelocityLinearApproximation(
                                                                                                                          const vector_t& state, const vector_t& input) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = velocityCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -242,7 +242,7 @@ namespace ocp_solver {
   }
 
   auto PinocchioEndEffectorDynamicsCppAd::getOrientation(const vector_t& state) const -> std::vector<quaternion_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t orientationValues = orientationCppAdInterfacePtr_->getFunctionValue(dx, state);
 
     std::vector<quaternion_t> orientations;
@@ -276,7 +276,7 @@ namespace ocp_solver {
       params.segment<4>(state.rows() + i * 4) = referenceOrientations[i].coeffs();
     }
 
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t errorValues = orientationErrorCppAdInterfacePtr_->getFunctionValue(dx, params);
 
     std::vector<vector3_t> errors;
@@ -295,7 +295,7 @@ namespace ocp_solver {
       params.segment<4>(state.rows() + i * 4) = referenceOrientations[i].coeffs();
     }
 
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t errorValues = orientationErrorCppAdInterfacePtr_->getFunctionValue(dx, params);
     const ocs2::matrix_t errorJacobian = orientationErrorCppAdInterfacePtr_->getJacobian(dx, params);
 
@@ -349,7 +349,7 @@ namespace ocp_solver {
   }
 
   auto PinocchioEndEffectorDynamicsCppAd::getAngularVelocity(const vector_t& state, const vector_t& input) const -> std::vector<vector3_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = angularVelocityCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -364,7 +364,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getAngularVelocityLinearApproximation(
                                                                                                                                 const vector_t& state, const vector_t& input) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = angularVelocityCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -404,7 +404,7 @@ namespace ocp_solver {
   }
 
   auto PinocchioEndEffectorDynamicsCppAd::getTwist(const vector_t& state, const vector_t& input) const -> std::vector<vector6_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = twistCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -419,7 +419,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getTwistLinearApproximation(const vector_t& state,
                                                                                                                       const vector_t& input) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = twistCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -457,7 +457,7 @@ namespace ocp_solver {
 
   auto PinocchioEndEffectorDynamicsCppAd::getLinearAcceleration(const vector_t& state,
                                                                 const vector_t& input) const -> std::vector<vector3_t> { 
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t accelerationValues = linearAccelerationCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -472,7 +472,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getLinearAccelerationLinearApproximation(
                                                                                                                                    const vector_t& state, const vector_t& input) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t accelerationValues = linearAccelerationCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -510,7 +510,7 @@ namespace ocp_solver {
 
   auto PinocchioEndEffectorDynamicsCppAd::getAngularAcceleration(const vector_t& state,
                                                                  const vector_t& input) const -> std::vector<vector3_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t accelerationValues = angularAccelerationCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -525,7 +525,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getAngularAccelerationLinearApproximation(
                                                                                                                                     const vector_t& state, const vector_t& input) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t accelerationValues = angularAccelerationCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -566,7 +566,7 @@ namespace ocp_solver {
   }
 
   auto PinocchioEndEffectorDynamicsCppAd::getAccelerations(const vector_t& state, const vector_t& input) const -> std::vector<vector6_t> {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = accelerationsCppAdInterfacePtr_->getFunctionValue(stateInput, state);
@@ -581,7 +581,7 @@ namespace ocp_solver {
 
   std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getAccelerationsLinearApproximation(
                                                                                                                               const vector_t& state, const vector_t& input) const {
-    const vector_t dx = vector_t::Zero(pinocchioInterfaceCppAd_.getModel().nv);
+    const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = accelerationsCppAdInterfacePtr_->getFunctionValue(stateInput, state);

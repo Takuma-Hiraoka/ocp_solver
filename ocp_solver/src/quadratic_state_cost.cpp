@@ -2,7 +2,7 @@
 #include <pinocchio/multibody/model.hpp>
 #include "ocp_solver/quadratic_state_cost.h"
 
-namespace ocp_sovler {
+namespace ocp_solver {
   QuadraticStateCost::QuadraticStateCost(const ocs2::PinocchioInterface& pinocchioInterface, ocs2::matrix_t Q)
     : ocs2::QuadraticStateCost(Q),
       pinocchioInterface_(pinocchioInterface) {};
