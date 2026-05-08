@@ -75,8 +75,6 @@ namespace ocp_solver {
     tmp.tail(pinocchioInterface.getModel().nv) += dt_third * k3.tail(pinocchioInterface.getModel().nv);
     tmp.tail(pinocchioInterface.getModel().nv) += dt_sixth * k4.tail(pinocchioInterface.getModel().nv);
 
-
-    tmp = x + dt_sixth * tmp + dt_third * k2 + dt_third * k3 + dt_sixth * k4;
     return tmp;
   }
 

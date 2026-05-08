@@ -21,6 +21,8 @@ namespace ocp_solver {
   void GravityCompensationInitializer::compute(ocs2::scalar_t time, const ocs2::vector_t& state, ocs2::scalar_t nextTime, ocs2::vector_t& input, ocs2::vector_t& nextState) {
     // TODO
     input = ocs2::vector_t::Zero(stateConverterPtr_->getInputDim());
+    input[2] = 100;
+    input[8] = 100;
     nextState = state;
   }
 

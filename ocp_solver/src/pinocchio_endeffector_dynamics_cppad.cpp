@@ -323,10 +323,31 @@ namespace ocp_solver {
     ocs2::ad_vector_t errors(3 * endEffectorFrameIds_.size());
     for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
       const size_t frameId = endEffectorFrameIds_[i];
-      const ad_quaternion_t eeOrientation = ocs2::matrixToQuaternion(data.oMf[frameId].rotation());
+      // TODO
+      const auto& R = data.oMf[frameId].rotation();
+
       ad_quaternion_t eeReferenceOrientation;
       eeReferenceOrientation.coeffs() = params.segment<4>(model.nq + 4 * i);
-      errors.segment<3>(3 * i) = ocs2::quaternionDistance(eeOrientation, eeReferenceOrientation);
+      Eigen::Matrix<ocs2::ad_scalar_t,3,3> R_ref =
+        eeReferenceOrientation.toRotationMatrix();
+
+      Eigen::Matrix<ocs2::ad_scalar_t,3,3> R_err =
+        R_ref.transpose() * R;
+
+      Eigen::Matrix<ocs2::ad_scalar_t,3,1> rotError;
+
+      rotError <<
+        R_err(2,1) - R_err(1,2),
+        R_err(0,2) - R_err(2,0),
+        R_err(1,0) - R_err(0,1);
+
+      rotError *= ocs2::ad_scalar_t(0.5);
+
+      errors.segment<3>(3*i) = rotError;
+      // const ad_quaternion_t eeOrientation = ocs2::matrixToQuaternion(data.oMf[frameId].rotation());
+      // ad_quaternion_t eeReferenceOrientation;
+      // eeReferenceOrientation.coeffs() = params.segment<4>(model.nq + 4 * i);
+      // errors.segment<3>(3 * i) = ocs2::quaternionDistance(eeOrientation, eeReferenceOrientation);
     }
     return errors;
   }
