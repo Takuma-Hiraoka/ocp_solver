@@ -76,9 +76,9 @@ namespace ocp_solver {
 
   template <typename SCALAR_T>
     Eigen::Matrix<SCALAR_T, 6, 1> computeBaseAcceleration(const Eigen::Matrix<SCALAR_T, -1, -1>& M,
-                                                const Eigen::Matrix<SCALAR_T, -1, 1>& nle,
-                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                const Eigen::Matrix<SCALAR_T, -1, 1>& externalForcesInJointSpace);
+                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& nle,
+                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
+                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& externalForcesInJointSpace);
 
   template <typename SCALAR_T>
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,

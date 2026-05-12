@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include "ocp_solver/ocp_sensitivity_integrator.h"
 #include "ocp_solver/system_dynamics_ad.h"
+#include "ocp_solver/system_dynamics.h"
 
 namespace ocp_solver {
   ocs2::DynamicsDiscretizer selectDynamicsDiscretization(ocs2::SensitivityIntegratorType integratorType) {
@@ -17,7 +18,9 @@ namespace ocp_solver {
   }
 
   ocs2::vector_t eulerDiscretization(ocs2::SystemDynamicsBase& system, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, ocs2::scalar_t dt) {
-    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    SystemDynamicsAD* systemADPtr = dynamic_cast<SystemDynamicsAD*>(&system);
+    SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
+    ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
 
     ocs2::vector_t dx = system.computeFlowMap(t, x, u);
     ocs2::vector_t tmp = ocs2::vector_t::Zero(x.size());
@@ -28,7 +31,9 @@ namespace ocp_solver {
 
   ocs2::vector_t rk2Discretization(ocs2::SystemDynamicsBase& system, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, ocs2::scalar_t dt) {
     const ocs2::scalar_t dt_halve = dt / 2.0;
-    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    SystemDynamicsAD* systemADPtr = dynamic_cast<SystemDynamicsAD*>(&system);
+    SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
+    ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
 
     // System evaluations
     ocs2::vector_t k1 = system.computeFlowMap(t, x, u);
@@ -51,7 +56,9 @@ namespace ocp_solver {
     const ocs2::scalar_t dt_sixth = dt / 6.0;
     const ocs2::scalar_t dt_third = dt / 3.0;
 
-    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    SystemDynamicsAD* systemADPtr = dynamic_cast<SystemDynamicsAD*>(&system);
+    SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
+    ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
     // System evaluations
     const ocs2::vector_t k1 = system.computeFlowMap(t, x, u);
     ocs2::vector_t tmp = x;
@@ -97,7 +104,9 @@ namespace ocp_solver {
     // A_{k} = Id + dt * dfdx
     // B_{k} = dt * dfdu
     // b_{k} = x_{n} + dt * f(x_{n},u_{n})
-    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    SystemDynamicsAD* systemADPtr = dynamic_cast<SystemDynamicsAD*>(&system);
+    SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
+    ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
 
     auto continuousApproximation = system.linearApproximation(t, x, u);
     continuousApproximation.dfdx *= dt;
@@ -113,7 +122,9 @@ namespace ocp_solver {
 
   ocs2::VectorFunctionLinearApproximation rk2SensitivityDiscretization(ocs2::SystemDynamicsBase& system, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u, ocs2::scalar_t dt) {
     const ocs2::scalar_t dt_halve = dt / 2.0;
-    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    SystemDynamicsAD* systemADPtr = dynamic_cast<SystemDynamicsAD*>(&system);
+    SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
+    ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
 
     // System evaluations
     ocs2::VectorFunctionLinearApproximation k1 = system.linearApproximation(t, x, u);
@@ -154,7 +165,9 @@ namespace ocp_solver {
     const ocs2::scalar_t dt_sixth = dt / 6.0;
     const ocs2::scalar_t dt_third = dt / 3.0;
 
-    ocs2::PinocchioInterface& pinocchioInterface = static_cast<SystemDynamicsAD&>(system).getPinocchioInterface();
+    SystemDynamicsAD* systemADPtr = dynamic_cast<SystemDynamicsAD*>(&system);
+    SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
+    ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
     // System evaluations
     ocs2::VectorFunctionLinearApproximation k1 = system.linearApproximation(t, x, u);
     ocs2::vector_t tmpV = x;

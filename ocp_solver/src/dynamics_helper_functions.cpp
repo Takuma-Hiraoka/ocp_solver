@@ -102,23 +102,28 @@ namespace ocp_solver {
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& nle,
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& externalForcesInJointSpace) {
+    auto M_bj = M.block(0, 6, 6, qdd_joints.size());
+    Eigen::Matrix<SCALAR_T, 6, 1> intermediate = -nle.head(6) - M_bj * qdd_joints + externalForcesInJointSpace.head(6);
+    if constexpr (std::is_same_v<SCALAR_T, ocs2::ad_scalar_t>) {
     // Due to the block diagonal structure of the generalized mass matrix corresponding to the base the base mass matrix can be split into a
     // linear and angular part. Which are both inverted separately. This does not only exploit part of the sparsity but also prevents a CppAD
     // branching error when multiplying a 6x6 matrix with a6 dim. vector.
 
-    Eigen::Matrix<SCALAR_T, 3, 3> M_bb_lin = M.topLeftCorner(3, 3);
-    Eigen::Matrix<SCALAR_T, 3, 3> M_bb_ang = M.block(3, 3, 3, 3);
-    auto M_bj = M.block(0, 6, 6, qdd_joints.size());
-    Eigen::Matrix<SCALAR_T, 3, 3> M_bb_lin_inv = M_bb_lin.inverse();
-    Eigen::Matrix<SCALAR_T, 3, 3> M_bb_ang_inv = M_bb_ang.inverse();
+      Eigen::Matrix<SCALAR_T, 3, 3> M_bb_lin = M.topLeftCorner(3, 3);
+      Eigen::Matrix<SCALAR_T, 3, 3> M_bb_ang = M.block(3, 3, 3, 3);
+      Eigen::Matrix<SCALAR_T, 3, 3> M_bb_lin_inv = M_bb_lin.inverse();
+      Eigen::Matrix<SCALAR_T, 3, 3> M_bb_ang_inv = M_bb_ang.inverse();
 
-    Eigen::Matrix<SCALAR_T, 6, 1> intermediate = -nle.head(6) - M_bj * qdd_joints + externalForcesInJointSpace.head(6);
 
-    Eigen::Matrix<SCALAR_T, 6, 1> baseAccelerations;
-    baseAccelerations.head(3) = M_bb_lin_inv * intermediate.head(3);
-    baseAccelerations.tail(3) = M_bb_ang_inv * intermediate.tail(3);
+      Eigen::Matrix<SCALAR_T, 6, 1> baseAccelerations;//
+      baseAccelerations.head(3) = M_bb_lin_inv * intermediate.head(3);
+      baseAccelerations.tail(3) = M_bb_ang_inv * intermediate.tail(3);
 
-    return baseAccelerations;
+      return baseAccelerations;
+    } else {
+      Eigen::Matrix<SCALAR_T, 6, 1> baseAccelerations = M.topLeftCorner(6, 6).inverse() * intermediate;
+      return baseAccelerations;
+    }
   }
   template Eigen::Matrix<ocs2::scalar_t, 6, 1> computeBaseAcceleration(const Eigen::Matrix<ocs2::scalar_t, -1, -1>& M,
                                                                        const Eigen::Matrix<ocs2::scalar_t, -1, 1>& nle,

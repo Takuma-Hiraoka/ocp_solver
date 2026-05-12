@@ -1,12 +1,13 @@
 #include "ocp_solver/ocp_interface.h"
 #include "ocp_solver/ocp_sqp_solver.h"
 #include "ocp_solver/system_dynamics_ad.h"
+#include "ocp_solver/system_dynamics.h"
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/gravity_compensation_initializer.h"
 #include "ocp_solver/zero_wrench_constraint.h"
 
 namespace ocp_solver {
-  void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
+  void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
     pinocchio_model_builder::buildModel(pinocchioModel, urdfFile, fixedJointNames, baseJointComposite, urdfModel);
@@ -34,7 +35,8 @@ namespace ocp_solver {
 
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr;
     const std::string modelName = taskName + "_dynamics";
-    dynamicsPtr.reset(new SystemDynamicsAD(*pinocchioInterfacePtr_, *stateConverterADPtr_, modelName, "build/cppad_autocode_gen"));
+    if (useAD) dynamicsPtr.reset(new SystemDynamicsAD(*pinocchioInterfacePtr_, *stateConverterADPtr_, modelName, "build/cppad_autocode_gen"));
+    else dynamicsPtr.reset(new SystemDynamics(*pinocchioInterfacePtr_, *stateConverterPtr_));
     problemPtr_->dynamicsPtr = std::move(dynamicsPtr);
 
     for (size_t i=0; i<contactCandidates.size(); i++) {
