@@ -1,0 +1,64 @@
+#pragma once
+
+#include <functional>
+#include <string>
+#include <vector>
+
+#include <ocs2_core/Types.h>
+#include <ocs2_pinocchio_interface/PinocchioInterface.h>
+
+#include "ocp_solver/state_converter.h"
+#include "ocp_solver/ocp_pre_computation.h"
+
+namespace ocp_solver {
+
+  class PinocchioEndEffectorDynamics {
+  public:
+    using vector3_t = Eigen::Matrix<ocs2::scalar_t, 3, 1>;
+    using matrix3x_t = Eigen::Matrix<ocs2::scalar_t, 3, Eigen::Dynamic>;
+    using vector6_t = Eigen::Matrix<ocs2::scalar_t, 6, 1>;
+    using matrix6x_t = Eigen::Matrix<ocs2::scalar_t, 6, Eigen::Dynamic>;
+    using vector_t = Eigen::Matrix<ocs2::scalar_t, Eigen::Dynamic, 1>;
+    using quaternion_t = Eigen::Quaternion<ocs2::scalar_t>;
+
+    PinocchioEndEffectorDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
+                                 StateConverter<ocs2::scalar_t>& stateConverter,
+                                 std::string endEffectorId);
+
+    ~PinocchioEndEffectorDynamics() = default;
+    PinocchioEndEffectorDynamics* clone() const;
+    PinocchioEndEffectorDynamics& operator=(const PinocchioEndEffectorDynamics&) = delete;
+
+    const std::string& getId() const { return endEffectorId_; };
+    const std::size_t& getFrameId() const { return endEffectorFrameId_; };
+
+    ocs2::vector_t getPosition(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getVelocity(const OCPPreComputation& preComputation) const;
+
+    quaternion_t getOrientation(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getOrientationError(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const;
+    ocs2::vector_t getAngularVelocity(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getTwist(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getLinearAcceleration(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getAngularAcceleration(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getAccelerations(const OCPPreComputation& preComputation) const;
+
+    ocs2::VectorFunctionLinearApproximation getPositionLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getVelocityLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getOrientationErrorLinearApproximation(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const;
+    ocs2::VectorFunctionLinearApproximation getAngularVelocityLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getTwistLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getLinearAccelerationLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getAngularAccelerationLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getAccelerationsLinearApproximation(const OCPPreComputation& preComputation) const;
+
+  private:
+    PinocchioEndEffectorDynamics(const PinocchioEndEffectorDynamics& rhs);
+
+    std::string endEffectorId_;
+    size_t endEffectorFrameId_;
+
+    StateConverter<ocs2::scalar_t>* stateConverter_;
+  };
+
+}

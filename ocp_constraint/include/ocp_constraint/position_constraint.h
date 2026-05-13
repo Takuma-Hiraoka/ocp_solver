@@ -1,39 +1,48 @@
 #pragma once
 
-#include <ocs2_core/constraint/StateConstraint.h>
-#include <ocs2_core/Types.h>
-
-#include <ocs2_pinocchio_interface/PinocchioInterface.h>
-
-#include <pinocchio/fwd.hpp>
-#include <pinocchio/algorithm/frames.hpp>
-#include <pinocchio/algorithm/jacobian.hpp>
+#include <ocs2_core/constraint/StateInputConstraint.h>
+#include <ocp_solver/pinocchio_endeffector_dynamics.h>
+#include <ocp_solver/switched_model_reference_manager.h>
 
 namespace ocp_constraint {
-  class PositionConstraint final : public ocs2::StateConstraint {
+
+  class PositionConstraint final : public ocs2::StateInputConstraint {
   public:
-    PositionConstraint(const pinocchio::FrameIndex targetFrameId,
-                       const pinocchio::SE3& targetPose);
+    struct Config {
+      ocs2::matrix_t Ax;
+      ocs2::matrix_t Av;
+      ocs2::matrix_t Aa;
+    };
+
+    PositionConstraint(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
+                         const ocp_solver::PinocchioEndEffectorDynamics& endEffectorDynamics,
+                         size_t numConstraints,
+                         Config config = Config());
 
     ~PositionConstraint() override = default;
+    PositionConstraint* clone() const override { return new PositionConstraint(*this); }
 
-    PositionConstraint* clone() const override;
+    void configure(Config&& config);
+    void configure(const Config& config) { this->configure(Config(config)); }
+
+    ocp_solver::PinocchioEndEffectorDynamics& getEndEffectorDynamics() { return *endEffectorDynamicsPtr_; }
 
     bool isActive(ocs2::scalar_t time) const override;
-
-    size_t getNumConstraints(ocs2::scalar_t time) const override { return 6; };
-
+    size_t getNumConstraints(ocs2::scalar_t time) const override { return numConstraints_; }
     ocs2::vector_t getValue(ocs2::scalar_t time,
                             const ocs2::vector_t& state,
+                            const ocs2::vector_t& input,
                             const ocs2::PreComputation& preComp) const override;
-
     ocs2::VectorFunctionLinearApproximation getLinearApproximation(ocs2::scalar_t time,
                                                                    const ocs2::vector_t& state,
+                                                                   const ocs2::vector_t& input,
                                                                    const ocs2::PreComputation& preComp) const override;
 
   private:
-    pinocchio::FrameIndex targetFrameId_;
-    pinocchio::SE3 targetPose_;
-    bool isActive_ = true;
+    PositionConstraint(const PositionConstraint& rhs);
+    const ocp_solver::SwitchedModelReferenceManager* referenceManagerPtr_;
+    std::unique_ptr<ocp_solver::PinocchioEndEffectorDynamics> endEffectorDynamicsPtr_;
+    const size_t numConstraints_;
+    Config config_;
   };
 }

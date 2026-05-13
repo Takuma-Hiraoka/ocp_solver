@@ -8,7 +8,7 @@ namespace ocp_solver {
   class OCPPreComputation : public ocs2::PreComputation {
   public:
     OCPPreComputation(ocs2::PinocchioInterface pinocchioInterface,
-                        const StateConverter<ocs2::scalar_t>& stateConverter);
+                      const StateConverter<ocs2::scalar_t>& stateConverter);
     ~OCPPreComputation() override = default;
 
     OCPPreComputation* clone() const override;

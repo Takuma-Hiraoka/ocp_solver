@@ -4,6 +4,7 @@
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/frames-derivatives.hpp>
+#include <pinocchio/algorithm/crba.hpp>
 
 #include <ocs2_core/misc/Numerics.h>
 
@@ -35,10 +36,12 @@ namespace ocp_solver {
     const pinocchio::Model& model = pinocchioInterface_.getModel();
     pinocchio::Data& data = pinocchioInterface_.getData();
 
-    pinocchio::forwardKinematics(model, data, q, v, a);
     pinocchio::computeJointJacobians(model, data, q);
     pinocchio::computeJointJacobiansTimeVariation(model, data, q, v);
+    pinocchio::forwardKinematics(model, data, q, v, a);
     pinocchio::updateFramePlacements(model, data);
+    pinocchio::crba(model, data, q);
+    pinocchio::computeForwardKinematicsDerivatives(model, data, q, v, a);
   }
 
   void OCPPreComputation::request(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u) {
