@@ -10,6 +10,6 @@ namespace ocp_solver {
   protected:
     std::pair<ocs2::vector_t, ocs2::vector_t> getStateInputDeviation(ocs2::scalar_t time, const ocs2::vector_t& state, const ocs2::vector_t& input, const ocs2::TargetTrajectories& targetTrajectories) const override;
   private:
-    const ocs2::PinocchioInterface pinocchioInterface_;
+    const pinocchio::Model model_;
   };
 }

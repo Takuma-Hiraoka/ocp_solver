@@ -341,9 +341,10 @@ namespace ocp_solver {
     for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
       ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
       pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-      acceleration.dfdu.block(0,i*6, 6, 6) = data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose();
+      acceleration.dfdu.block(0,i*6, 6, 6) = data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose() + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose();
     }
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = a_partial_da.rightCols(stateConverter_->getJointDim()) + data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim());
+
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = a_partial_da.rightCols(stateConverter_->getJointDim()) + data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim());
 
     return acceleration;
   }

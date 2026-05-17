@@ -41,7 +41,7 @@ namespace ocp_constraint {
     ocs2::vector_t f = ocs2::vector_t::Zero(numConstraints_);
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
-      for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
+      for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
         if (contact.first == endEffectorDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
       }
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
@@ -70,7 +70,7 @@ namespace ocp_constraint {
     // This is equal with assuming that the bottom 3 rows of Ax are zero.
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
-      for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
+      for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
         if (contact.first == endEffectorDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
       }
       const auto positionApprox = endEffectorDynamicsPtr_->getPositionLinearApproximation(state).front();

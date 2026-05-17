@@ -79,9 +79,6 @@ namespace ocp_solver {
     auto& eqConstraints = transcription.eqConstraints;
     auto& ineqConstraints = transcription.ineqConstraints;
 
-    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Dynamics + ocs2::Request::Approximation;
-    optimalControlProblem.preComputationPtr->requestPreJump(request, t, x);
-
     // Dynamics
     // jump map returns // x_{k+1} = A_{k} * dx_{k} + b_{k}
     dynamics = optimalControlProblem.dynamicsPtr->jumpMapLinearApproximation(t, x);
@@ -94,6 +91,9 @@ namespace ocp_solver {
     dynamics.f = x_diff;
 
     dynamics.dfdu.setZero(x.size(), 0);  // Overwrite derivative that shouldn't exist.
+
+    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Dynamics + ocs2::Request::Approximation;
+    optimalControlProblem.preComputationPtr->requestPreJump(request, t, x);
 
     // Costs
     cost = approximateEventCost(optimalControlProblem, t, x);

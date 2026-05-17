@@ -10,6 +10,7 @@
 #include "ocp_solver/ocp_transcription.h"
 #include "ocp_solver/ocp_sensitivity_integrator.h"
 #include "ocp_solver/ocp_metrics_computation.h"
+#include "ocp_solver/system_dynamics.h"
 
 namespace ocp_solver {
   // use pinocchio::diference

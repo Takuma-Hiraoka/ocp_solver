@@ -5,6 +5,7 @@
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/frames-derivatives.hpp>
 #include <pinocchio/algorithm/crba.hpp>
+#include <pinocchio/algorithm/rnea.hpp>
 
 #include <ocs2_core/misc/Numerics.h>
 
@@ -41,6 +42,7 @@ namespace ocp_solver {
     pinocchio::forwardKinematics(model, data, q, v, a);
     pinocchio::updateFramePlacements(model, data);
     pinocchio::crba(model, data, q);
+    pinocchio::nonLinearEffects(model, data, q, v);
     pinocchio::computeForwardKinematicsDerivatives(model, data, q, v, a);
   }
 

@@ -5,12 +5,12 @@ namespace ocp_solver {
     : ReferenceManager(ocs2::TargetTrajectories(), ocs2::ModeSchedule()),
       contactSchedule_(std::move(contactSchedule)) {}
 
-  std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > SwitchedModelReferenceManager::getContacts(ocs2::scalar_t time) const {
+  const std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > SwitchedModelReferenceManager::getContacts(ocs2::scalar_t time) const {
     return this->getContactSchedule().contactAtTime(time);
   }
 
   bool SwitchedModelReferenceManager::isInContact(ocs2::scalar_t time, pinocchio::FrameIndex index) const {
-    std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > contacts = this->getContacts(time);
+    const std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > contacts = this->getContacts(time);
     for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : contacts) {
       if (contact.first == index) return true;
     }
