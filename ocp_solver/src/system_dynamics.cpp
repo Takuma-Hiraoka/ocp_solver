@@ -1,5 +1,5 @@
 #include "ocp_solver/system_dynamics.h"
-#include "ocp_solver/dynamics_helper_functions_ad.h"
+#include "ocp_solver/dynamics_helper_functions.h"
 #include <pinocchio/algorithm/aba.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/aba-derivatives.hpp>

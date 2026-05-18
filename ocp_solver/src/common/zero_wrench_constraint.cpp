@@ -1,4 +1,4 @@
-#include "ocp_solver/zero_wrench_constraint.h"
+#include "ocp_solver/common/zero_wrench_constraint.h"
 
 namespace ocp_solver {
 

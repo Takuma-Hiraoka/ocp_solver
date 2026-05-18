@@ -1,4 +1,4 @@
-#include "ocp_solver/ocp_state_input_constraint_collection.h"
+#include "ocp_solver/ocp_data/ocp_state_input_constraint_collection.h"
 
 namespace ocp_solver {
 

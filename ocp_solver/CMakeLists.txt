@@ -35,7 +35,6 @@ add_library(${PROJECT_NAME}
   src/contact_schedule.cpp
   src/ocp_interface.cpp
   src/dynamics_helper_functions.cpp
-  src/dynamics_helper_functions_ad.cpp
   src/system_dynamics.cpp
   src/system_dynamics_ad.cpp
   src/ocp_pre_computation.cpp
@@ -43,18 +42,18 @@ add_library(${PROJECT_NAME}
   src/ocp_pinocchio_mapping.cpp
   src/pinocchio_endeffector_dynamics_cppad.cpp
   src/pinocchio_endeffector_dynamics.cpp
-  src/zero_wrench_constraint.cpp
   src/ocp_sqp_solver.cpp
   src/ocp_transcription.cpp
   src/ocp_sensitivity_integrator.cpp
   src/ocp_metrics_computation.cpp
-  src/quadratic_state_cost.cpp
-  src/quadratic_state_input_cost.cpp
-  src/ocp_optimal_control_problem.cpp
-  src/ocp_state_cost_collection.cpp
-  src/ocp_state_input_cost_collection.cpp
-  src/ocp_state_constraint_collection.cpp
-  src/ocp_state_input_constraint_collection.cpp
+  src/common/zero_wrench_constraint.cpp
+  src/common/quadratic_state_cost.cpp
+  src/common/quadratic_state_input_cost.cpp
+  src/ocp_data/ocp_optimal_control_problem.cpp
+  src/ocp_data/ocp_state_cost_collection.cpp
+  src/ocp_data/ocp_state_input_cost_collection.cpp
+  src/ocp_data/ocp_state_constraint_collection.cpp
+  src/ocp_data/ocp_state_input_constraint_collection.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

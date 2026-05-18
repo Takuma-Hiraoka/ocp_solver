@@ -1,8 +1,8 @@
-#include "ocp_solver/ocp_optimal_control_problem.h"
-#include "ocp_solver/ocp_state_cost_collection.h"
-#include "ocp_solver/ocp_state_input_cost_collection.h"
-#include "ocp_solver/ocp_state_constraint_collection.h"
-#include "ocp_solver/ocp_state_input_constraint_collection.h"
+#include "ocp_solver/ocp_data/ocp_optimal_control_problem.h"
+#include "ocp_solver/ocp_data/ocp_state_cost_collection.h"
+#include "ocp_solver/ocp_data/ocp_state_input_cost_collection.h"
+#include "ocp_solver/ocp_data/ocp_state_constraint_collection.h"
+#include "ocp_solver/ocp_data/ocp_state_input_constraint_collection.h"
 
 namespace ocp_solver {
   OptimalControlProblem::OptimalControlProblem(const size_t& ss, const size_t& is)

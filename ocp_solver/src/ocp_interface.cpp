@@ -4,8 +4,8 @@
 #include "ocp_solver/system_dynamics.h"
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/gravity_compensation_initializer.h"
-#include "ocp_solver/zero_wrench_constraint.h"
-#include "ocp_solver/ocp_optimal_control_problem.h"
+#include "ocp_solver/common/zero_wrench_constraint.h"
+#include "ocp_solver/ocp_data/ocp_optimal_control_problem.h"
 
 namespace ocp_solver {
   void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
@@ -24,7 +24,7 @@ namespace ocp_solver {
     for (size_t i=0; i<contactCandidates.size(); i++) contactCandidateIds.push_back(pinocchioInterfacePtr_->getModel().getFrameId(contactCandidates[i].frameName));
 
     stateConverterPtr_.reset(new StateConverter<ocs2::scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq(), baseJointComposite.nv()));
-    stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq(), baseJointComposite.nv()));
+    if (useAD) stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidateIds, jointIndexMap, baseJointComposite.nq(), baseJointComposite.nv()));
 
     referenceManagerPtr_ = std::make_shared<SwitchedModelReferenceManager>();
 
