@@ -307,6 +307,11 @@ namespace ocp_solver {
     ocs2::matrix_t a_partial_dq = spatial_dq;
     ocs2::matrix_t a_partial_dv = spatial_dv;
     ocs2::matrix_t a_partial_da = spatial_da;
+    if (!a_partial_da.allFinite()) {
+      a_partial_da = a_partial_da.unaryExpr([](double x) {
+                                              return std::isfinite(x) ? x : 0.0;
+                                            });
+    }
 
     const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
     const vector3_t omega = v_frame.angular();
