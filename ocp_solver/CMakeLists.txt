@@ -50,6 +50,11 @@ add_library(${PROJECT_NAME}
   src/ocp_metrics_computation.cpp
   src/quadratic_state_cost.cpp
   src/quadratic_state_input_cost.cpp
+  src/ocp_optimal_control_problem.cpp
+  src/ocp_state_cost_collection.cpp
+  src/ocp_state_input_cost_collection.cpp
+  src/ocp_state_constraint_collection.cpp
+  src/ocp_state_input_constraint_collection.cpp
   )
 
 target_include_directories(${PROJECT_NAME}

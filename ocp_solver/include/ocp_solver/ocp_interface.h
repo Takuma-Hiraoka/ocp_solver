@@ -12,7 +12,7 @@
 #include "ocp_solver/ocp_sqp_mpc.h"
 
 namespace ocp_solver {
-  static pinocchio::JointModelComposite getBaseJointcomposite() {
+  static pinocchio::JointModelComposite getBaseJointcompositeForAD() {
     pinocchio::JointModelComposite baseJointComposite(2);
     baseJointComposite.addJoint(pinocchio::JointModelTranslation());
     baseJointComposite.addJoint(pinocchio::JointModelSphericalZYX());

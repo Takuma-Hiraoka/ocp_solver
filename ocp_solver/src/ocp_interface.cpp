@@ -5,6 +5,7 @@
 #include "ocp_solver/ocp_pre_computation.h"
 #include "ocp_solver/gravity_compensation_initializer.h"
 #include "ocp_solver/zero_wrench_constraint.h"
+#include "ocp_solver/ocp_optimal_control_problem.h"
 
 namespace ocp_solver {
   void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
@@ -31,7 +32,7 @@ namespace ocp_solver {
 
     initializerPtr_.reset(new GravityCompensationInitializer(*pinocchioInterfacePtr_, *referenceManagerPtr_, *stateConverterPtr_));
 
-    problemPtr_.reset(new ocs2::OptimalControlProblem);
+    problemPtr_.reset(new OptimalControlProblem(stateConverterPtr_->getStateVariableDim(), stateConverterPtr_->getInputDim()));
 
     std::unique_ptr<ocs2::SystemDynamicsBase> dynamicsPtr;
     const std::string modelName = taskName + "_dynamics";
