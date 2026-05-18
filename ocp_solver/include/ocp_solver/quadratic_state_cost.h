@@ -7,6 +7,7 @@ namespace ocp_solver {
   class QuadraticStateCost : public ocs2::QuadraticStateCost {
   public:
     QuadraticStateCost(const ocs2::PinocchioInterface& pinocchioInterface, ocs2::matrix_t Q);
+    QuadraticStateCost* clone() const override { return new QuadraticStateCost(*this); }
   protected:
     ocs2::vector_t getStateDeviation(ocs2::scalar_t time, const ocs2::vector_t& state, const ocs2::TargetTrajectories& targetTrajectories) const override;
   private:

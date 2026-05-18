@@ -64,8 +64,9 @@ namespace ocp_constraint {
                                                                                      const ocs2::vector_t& input,
                                                                                      const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
+    ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
     ocs2::VectorFunctionLinearApproximation linearApproximation =
-      ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), state.size(), input.size());
+      ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), 2*pinocchioInterface.getModel().nv, input.size());
 
     // Orientation error gains are ignored for now
     // This is equal with assuming that the bottom 3 rows of Ax are zero.

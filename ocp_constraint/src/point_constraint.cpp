@@ -31,12 +31,12 @@ namespace ocp_constraint {
   ocs2::VectorFunctionLinearApproximation PointConstraint::getLinearApproximation(ocs2::scalar_t time,
                                                                                   const ocs2::vector_t& state,
                                                                                   const ocs2::PreComputation& preComp) const {
+    const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     if (endEffectorKinematicsPtr_ != nullptr) {
-      const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
       endEffectorKinematicsPtr_->setPinocchioInterface(ocpPreComp.getPinocchioInterface());
     }
 
-    ocs2::VectorFunctionLinearApproximation approximation = ocs2::VectorFunctionLinearApproximation(6, state.rows(), 0);
+    ocs2::VectorFunctionLinearApproximation approximation = ocs2::VectorFunctionLinearApproximation(6, 2*ocpPreComp.getPinocchioInterface().getModel().nv, 0);
 
     const ocs2::VectorFunctionLinearApproximation  eePosition = endEffectorKinematicsPtr_->getPositionLinearApproximation(state).front();
     approximation.f.head<3>() = eePosition.f - targetPose_.translation();

@@ -260,13 +260,12 @@ namespace ocp_solver {
   }
 
   void OcpSqpSolver::incrementStateTrajectory(const ocs2::vector_array_t& v, const ocs2::vector_array_t& dv, const ocs2::scalar_t alpha, ocs2::vector_array_t& vNew) {
-    assert(v.size() == dv.size());
     if (v.size() != vNew.size()) throw std::runtime_error("[incrementTrajectory] Resize vNew to the size of v!");
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
     for (int i = 0; i < v.size(); i++) {
       vNew[i].resize(v[i].size());
       vNew[i].head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), v[i].head(pinocchioInterface.getModel().nq), alpha * dv[i].head(pinocchioInterface.getModel().nv));
-      vNew[i].tail(pinocchioInterface.getModel().nv) = pinocchio::integrate(pinocchioInterface.getModel(), v[i].tail(pinocchioInterface.getModel().nv), alpha * dv[i].tail(pinocchioInterface.getModel().nv));
+      vNew[i].tail(pinocchioInterface.getModel().nv) = v[i].tail(pinocchioInterface.getModel().nv) + alpha * dv[i].tail(pinocchioInterface.getModel().nv);
     }
   }
 
