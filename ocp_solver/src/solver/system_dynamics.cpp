@@ -7,7 +7,6 @@
 #include <pinocchio/algorithm/frames.hpp>
 
 namespace ocp_solver {
-  // parameterにqを入れる
   SystemDynamics::SystemDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
                                  StateConverter<ocs2::scalar_t>& stateConverter)
     : SystemDynamicsBase(),

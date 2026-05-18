@@ -21,6 +21,5 @@ namespace ocp_solver {
                                                        ocs2::TargetTrajectories& targetTrajectories, ocs2::ModeSchedule& modeSchedule) {
     contactSchedule_.updateFromBuffer();
     const auto timeHorizon = finalTime - initTime;
-    // TODO
   }
 }

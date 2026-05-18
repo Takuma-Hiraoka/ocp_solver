@@ -319,7 +319,6 @@ namespace ocp_solver {
     ocs2::ad_vector_t errors(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
       const size_t frameId = frameIds_[i];
-      // TODO
       const auto& R = data.oMf[frameId].rotation();
 
       ad_quaternion_t eeReferenceOrientation;
@@ -340,10 +339,6 @@ namespace ocp_solver {
       rotError *= ocs2::ad_scalar_t(0.5);
 
       errors.segment<3>(3*i) = rotError;
-      // const ad_quaternion_t eeOrientation = ocs2::matrixToQuaternion(data.oMf[frameId].rotation());
-      // ad_quaternion_t eeReferenceOrientation;
-      // eeReferenceOrientation.coeffs() = params.segment<4>(model.nq + 4 * i);
-      // errors.segment<3>(3 * i) = ocs2::quaternionDistance(eeOrientation, eeReferenceOrientation);
     }
     return errors;
   }

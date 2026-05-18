@@ -20,7 +20,7 @@ namespace ocp_solver {
       contactSequence.clear();
     }
 
-    // std::vector<size_t> modeSequence;  // mode sequence of size N. unused
+    // std::vector<size_t> modeSequence;  // mode sequence of size N. not used
     std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > > contactSequence; // [0] size N. corresponding to eventTimes. [1] contact vector. [2] candidate and targetPose
   };
   void swap(ContactSchedule& lh, ContactSchedule& rh);

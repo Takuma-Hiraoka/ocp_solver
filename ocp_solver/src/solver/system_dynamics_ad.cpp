@@ -2,7 +2,6 @@
 #include "ocp_solver/solver/dynamics_helper_functions.h"
 
 namespace ocp_solver {
-  // parameterにqを入れる
   SystemDynamicsAD::SystemDynamicsAD(const ocs2::PinocchioInterface& pinocchioInterface,
                                StateConverter<ocs2::ad_scalar_t>& stateConverter,
                                const std::string& modelName,

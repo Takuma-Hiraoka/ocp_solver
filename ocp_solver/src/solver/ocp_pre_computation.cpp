@@ -17,17 +17,11 @@ namespace ocp_solver {
   OCPPreComputation::OCPPreComputation(ocs2::PinocchioInterface pinocchioInterface,
                                        const StateConverter<ocs2::scalar_t>& stateConverter)
     : pinocchioInterface_(std::move(pinocchioInterface)),
-      stateConverterPtr_(&stateConverter) {
-      R_world_to_contacts_.resize(stateConverterPtr_->getContactNum());
-    for (size_t i = 0; i < stateConverterPtr_->getContactNum(); i++) {
-      R_world_to_contacts_[i] = Eigen::Matrix<ocs2::scalar_t, 3, 3>::Identity();
-    }
-  }
+      stateConverterPtr_(&stateConverter) {}
 
   OCPPreComputation::OCPPreComputation(const OCPPreComputation& rhs)
     : pinocchioInterface_(rhs.pinocchioInterface_),
-      stateConverterPtr_(rhs.stateConverterPtr_),
-      R_world_to_contacts_(rhs.R_world_to_contacts_){}
+      stateConverterPtr_(rhs.stateConverterPtr_) {}
 
   OCPPreComputation* OCPPreComputation::clone() const {
     return new OCPPreComputation(*this);
@@ -55,12 +49,6 @@ namespace ocp_solver {
     ocs2::vector_t a = computeGeneralizedAccelerations(x, u, pinocchioInterface_, sc);
     updatePinocchioModelKinematics(stateConverterPtr_->getGeneralizedCoordinates(x), stateConverterPtr_->getGeneralizedVelocities(x, u), a);
 
-    if (request.contains(ocs2::Request::Constraint)) {
-      for (size_t i = 0; i < stateConverterPtr_->getContactNum(); i++) {
-        pinocchio::FrameIndex frameID = stateConverterPtr_->getContactCandidateIds()[i];
-        R_world_to_contacts_[i] = pinocchioInterface_.getData().oMf[frameID].rotation().inverse();
-      }
-    }
   }
 
 }
