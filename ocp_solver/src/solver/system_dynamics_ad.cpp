@@ -1,5 +1,5 @@
-#include "ocp_solver/system_dynamics_ad.h"
-#include "ocp_solver/dynamics_helper_functions.h"
+#include "ocp_solver/solver/system_dynamics_ad.h"
+#include "ocp_solver/solver/dynamics_helper_functions.h"
 
 namespace ocp_solver {
   // parameterにqを入れる

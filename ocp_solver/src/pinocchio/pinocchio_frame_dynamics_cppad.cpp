@@ -1,7 +1,7 @@
 #include <pinocchio/fwd.hpp>  // forward declarations must be included first.
 
-#include "ocp_solver/pinocchio_frame_dynamics_cppad.h"
-#include "ocp_solver/dynamics_helper_functions.h"
+#include "ocp_solver/pinocchio/pinocchio_frame_dynamics_cppad.h"
+#include "ocp_solver/solver/dynamics_helper_functions.h"
 
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 

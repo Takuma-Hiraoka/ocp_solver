@@ -3,8 +3,8 @@
 #include <ocs2_core/initialization/Initializer.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
-#include "ocp_solver/state_converter.h"
-#include "ocp_solver/switched_model_reference_manager.h"
+#include "ocp_solver/solver/state_converter.h"
+#include "ocp_solver/solver/switched_model_reference_manager.h"
 
 namespace ocp_solver {
 

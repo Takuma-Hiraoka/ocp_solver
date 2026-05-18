@@ -1,6 +1,6 @@
 #include <pinocchio/fwd.hpp>
 
-#include "ocp_solver/dynamics_helper_functions.h"
+#include "ocp_solver/solver/dynamics_helper_functions.h"
 
 #include <ocs2_robotic_tools/common/RotationDerivativesTransforms.h>
 

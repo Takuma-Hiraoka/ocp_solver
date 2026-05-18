@@ -3,8 +3,8 @@
 #include <memory>
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
-#include <ocp_solver/pinocchio_frame_dynamics_cppad.h>
-#include <ocp_solver/switched_model_reference_manager.h>
+#include <ocp_solver/pinocchio/pinocchio_frame_dynamics_cppad.h>
+#include <ocp_solver/solver/switched_model_reference_manager.h>
 
 namespace ocp_constraint {
 

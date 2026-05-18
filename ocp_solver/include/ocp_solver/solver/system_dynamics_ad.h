@@ -3,7 +3,7 @@
 #include <ocs2_core/dynamics/SystemDynamicsBaseAD.h>
 
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
-#include "ocp_solver/state_converter.h"
+#include "ocp_solver/solver/state_converter.h"
 
 namespace ocp_solver {
   class SystemDynamicsAD final : public ocs2::SystemDynamicsBaseAD {

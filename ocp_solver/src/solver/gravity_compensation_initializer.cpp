@@ -1,6 +1,6 @@
-#include "ocp_solver/gravity_compensation_initializer.h"
+#include "ocp_solver/solver/gravity_compensation_initializer.h"
 
-#include "ocp_solver/dynamics_helper_functions.h"
+#include "ocp_solver/solver/dynamics_helper_functions.h"
 
 namespace ocp_solver {
 

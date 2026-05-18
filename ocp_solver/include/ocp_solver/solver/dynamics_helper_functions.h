@@ -12,8 +12,8 @@
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 
-#include "ocp_solver/state_converter.h"
-#include "ocp_solver/pinocchio_frame_conversions.h"
+#include "ocp_solver/solver/state_converter.h"
+#include "ocp_solver/pinocchio/pinocchio_frame_conversions.h"
 
 namespace ocp_solver {
   template <typename SCALAR_T>

@@ -3,7 +3,7 @@
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
 #include "ocp_constraint/joint_torque_cost_ad.h"
-#include <ocp_solver/dynamics_helper_functions.h>
+#include <ocp_solver/solver/dynamics_helper_functions.h>
 
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 

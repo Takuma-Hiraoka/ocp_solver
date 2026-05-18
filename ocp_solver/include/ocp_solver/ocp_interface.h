@@ -5,10 +5,10 @@
 #include <ocs2_mpc/MPC_Settings.h>
 #include <ocs2_sqp/SqpSettings.h>
 #include <ocs2_sqp/SqpMpc.h>
-#include "ocp_solver/state_converter.h"
+#include "ocp_solver/solver/state_converter.h"
 #include "ocp_solver/contact_candidate.h"
-#include "ocp_solver/switched_model_reference_manager.h"
-#include "ocp_solver/ocp_sqp_mpc.h"
+#include "ocp_solver/solver/switched_model_reference_manager.h"
+#include "ocp_solver/solver/ocp_sqp_mpc.h"
 
 namespace ocp_solver {
   static pinocchio::JointModelComposite getBaseJointcompositeForAD() {

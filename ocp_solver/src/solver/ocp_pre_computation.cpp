@@ -9,8 +9,8 @@
 
 #include <ocs2_core/misc/Numerics.h>
 
-#include "ocp_solver/ocp_pre_computation.h"
-#include "ocp_solver/dynamics_helper_functions.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
+#include "ocp_solver/solver/dynamics_helper_functions.h"
 
 namespace ocp_solver {
 

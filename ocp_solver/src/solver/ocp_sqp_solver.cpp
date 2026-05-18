@@ -5,12 +5,12 @@
 #include <ocs2_oc/multiple_shooting/Transcription.h>
 #include <ocs2_oc/oc_problem/OcpSize.h>
 #include <ocs2_oc/trajectory_adjustment/TrajectorySpreadingHelperFunctions.h>
-#include "ocp_solver/ocp_sqp_solver.h"
-#include "ocp_solver/ocp_pre_computation.h"
-#include "ocp_solver/ocp_transcription.h"
-#include "ocp_solver/ocp_sensitivity_integrator.h"
-#include "ocp_solver/ocp_metrics_computation.h"
-#include "ocp_solver/system_dynamics.h"
+#include "ocp_solver/solver/ocp_sqp_solver.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
+#include "ocp_solver/solver/ocp_transcription.h"
+#include "ocp_solver/solver/ocp_sensitivity_integrator.h"
+#include "ocp_solver/solver/ocp_metrics_computation.h"
+#include "ocp_solver/solver/system_dynamics.h"
 
 namespace ocp_solver {
   // use pinocchio::diference

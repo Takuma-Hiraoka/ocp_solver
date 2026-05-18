@@ -1,7 +1,7 @@
 #include <unordered_map>
-#include "ocp_solver/ocp_sensitivity_integrator.h"
-#include "ocp_solver/system_dynamics_ad.h"
-#include "ocp_solver/system_dynamics.h"
+#include "ocp_solver/solver/ocp_sensitivity_integrator.h"
+#include "ocp_solver/solver/system_dynamics_ad.h"
+#include "ocp_solver/solver/system_dynamics.h"
 
 namespace ocp_solver {
   ocs2::DynamicsDiscretizer selectDynamicsDiscretization(ocs2::SensitivityIntegratorType integratorType) {

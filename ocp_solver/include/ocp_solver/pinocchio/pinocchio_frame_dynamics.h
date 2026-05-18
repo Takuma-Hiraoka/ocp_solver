@@ -7,8 +7,8 @@
 #include <ocs2_core/Types.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
-#include "ocp_solver/state_converter.h"
-#include "ocp_solver/ocp_pre_computation.h"
+#include "ocp_solver/solver/state_converter.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
 
 namespace ocp_solver {
 

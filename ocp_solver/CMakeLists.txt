@@ -31,20 +31,20 @@ endforeach()
 
 message(WARNING "pinocchiodir ${pinocchio_DIR}")
 add_library(${PROJECT_NAME}
-  src/switched_model_reference_manager.cpp
-  src/contact_schedule.cpp
   src/ocp_interface.cpp
-  src/dynamics_helper_functions.cpp
-  src/system_dynamics.cpp
-  src/system_dynamics_ad.cpp
-  src/ocp_pre_computation.cpp
-  src/gravity_compensation_initializer.cpp
-  src/pinocchio_frame_dynamics_cppad.cpp
-  src/pinocchio_frame_dynamics.cpp
-  src/ocp_sqp_solver.cpp
-  src/ocp_transcription.cpp
-  src/ocp_sensitivity_integrator.cpp
-  src/ocp_metrics_computation.cpp
+  src/contact_schedule.cpp
+  src/solver/switched_model_reference_manager.cpp
+  src/solver/dynamics_helper_functions.cpp
+  src/solver/system_dynamics.cpp
+  src/solver/system_dynamics_ad.cpp
+  src/solver/ocp_pre_computation.cpp
+  src/solver/gravity_compensation_initializer.cpp
+  src/solver/ocp_sqp_solver.cpp
+  src/solver/ocp_transcription.cpp
+  src/solver/ocp_sensitivity_integrator.cpp
+  src/solver/ocp_metrics_computation.cpp
+  src/pinocchio/pinocchio_frame_dynamics_cppad.cpp
+  src/pinocchio/pinocchio_frame_dynamics.cpp
   src/common/zero_wrench_constraint.cpp
   src/common/quadratic_state_cost.cpp
   src/common/quadratic_state_input_cost.cpp

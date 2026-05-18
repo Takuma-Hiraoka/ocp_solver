@@ -3,8 +3,8 @@
 #include "ocs2_oc/approximate_model/ChangeOfInputVariables.h"
 #include "ocs2_oc/approximate_model/LinearQuadraticApproximator.h"
 
-#include "ocp_solver/ocp_transcription.h"
-#include "ocp_solver/ocp_pre_computation.h"
+#include "ocp_solver/solver/ocp_transcription.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
 
 namespace ocp_solver {
   ocs2::multiple_shooting::Transcription setupIntermediateNode(ocs2::OptimalControlProblem& optimalControlProblem, ocs2::DynamicsSensitivityDiscretizer& sensitivityDiscretizer,

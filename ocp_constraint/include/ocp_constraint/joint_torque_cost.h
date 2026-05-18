@@ -2,7 +2,7 @@
 
 #include <ocs2_core/cost/StateInputCost.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
-#include <ocp_solver/state_converter.h>
+#include <ocp_solver/solver/state_converter.h>
 
 namespace ocp_constraint {
   class JointTorqueCost : public ocs2::StateInputCost {

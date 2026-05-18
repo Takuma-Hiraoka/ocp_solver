@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <ocp_solver/pinocchio_frame_dynamics.h>
+#include <ocp_solver/pinocchio/pinocchio_frame_dynamics.h>
 #include <ocs2_core/constraint/StateConstraint.h>
 
 namespace ocp_constraint {

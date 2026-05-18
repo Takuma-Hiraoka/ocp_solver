@@ -1,6 +1,6 @@
 #include "ocp_constraint/joint_torque_cost.h"
-#include <ocp_solver/ocp_pre_computation.h>
-#include <ocp_solver/dynamics_helper_functions.h>
+#include <ocp_solver/solver/ocp_pre_computation.h>
+#include <ocp_solver/solver/dynamics_helper_functions.h>
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/algorithm/rnea-derivatives.hpp>

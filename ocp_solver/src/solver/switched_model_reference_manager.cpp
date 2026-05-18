@@ -1,4 +1,4 @@
-#include "ocp_solver/switched_model_reference_manager.h"
+#include "ocp_solver/solver/switched_model_reference_manager.h"
 
 namespace ocp_solver {
   SwitchedModelReferenceManager::SwitchedModelReferenceManager(ContactSchedule contactSchedule)

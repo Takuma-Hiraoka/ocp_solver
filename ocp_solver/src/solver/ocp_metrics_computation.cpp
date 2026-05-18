@@ -1,5 +1,5 @@
-#include "ocp_solver/ocp_pre_computation.h"
-#include "ocp_solver/ocp_metrics_computation.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
+#include "ocp_solver/solver/ocp_metrics_computation.h"
 
 #include <ocs2_oc/approximate_model/LinearQuadraticApproximator.h>
 

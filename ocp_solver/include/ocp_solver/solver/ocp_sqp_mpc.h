@@ -2,7 +2,7 @@
 
 #include <ocs2_mpc/MPC_BASE.h>
 
-#include "ocp_solver/ocp_sqp_solver.h"
+#include "ocp_solver/solver/ocp_sqp_solver.h"
 
 namespace ocp_solver {
 
