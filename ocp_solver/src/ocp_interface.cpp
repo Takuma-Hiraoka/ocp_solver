@@ -28,8 +28,6 @@ namespace ocp_solver {
 
     referenceManagerPtr_ = std::make_shared<SwitchedModelReferenceManager>();
 
-    mappingPtr_.reset(new OCPPinocchioMapping(*stateConverterPtr_));
-
     initializerPtr_.reset(new GravityCompensationInitializer(*pinocchioInterfacePtr_, *referenceManagerPtr_, *stateConverterPtr_));
 
     problemPtr_.reset(new OptimalControlProblem(stateConverterPtr_->getStateVariableDim(), stateConverterPtr_->getInputDim()));

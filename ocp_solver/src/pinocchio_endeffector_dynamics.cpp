@@ -228,12 +228,14 @@ namespace ocp_solver {
     acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = a_partial_dv.topRows(3);
 
     acceleration.dfdu.setZero(3, stateConverter_->getInputDim());
-    for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
-      ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
-      pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-      acceleration.dfdu.block(0,i*6, 3, 6) = (data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose()).topRows(3);
+    if (stateConverter_->getBaseVDim() > 0) {
+      for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
+        ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
+        pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
+        acceleration.dfdu.block(0,i*6, 3, 6) = (data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose()).topRows(3);
+      }
     }
-    acceleration.dfdu.rightCols(stateConverter_->getTangentDim()) = a_partial_da.topRows(3);
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = (a_partial_da.rightCols(stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim())).topRows(3);
     return acceleration;
   }
 
@@ -260,17 +262,53 @@ namespace ocp_solver {
     ocs2::matrix_t spatial_da(6, model.nv);
     pinocchio::getFrameAccelerationDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
 
+        ocs2::matrix_t a_partial_dq = spatial_dq;
+    ocs2::matrix_t a_partial_dv = spatial_dv;
+    ocs2::matrix_t a_partial_da = spatial_da;
+    if (!a_partial_da.allFinite()) {
+      a_partial_da = a_partial_da.unaryExpr([](double x) {
+                                              return std::isfinite(x) ? x : 0.0;
+                                            });
+    }
+
+    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    const vector3_t omega = v_frame.angular();
+    const vector3_t vlin  = v_frame.linear();
+    const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
+    const ocs2::matrix_t S_vlin = ocs2::skewSymmetricMatrix(vlin);
+
+    for (int k = 0; k < model.nv; ++k) {
+      // wrt q
+      const vector3_t dvlin_dq  = spatial_dq.block<3,1>(0, k);
+      const vector3_t domega_dq = spatial_dq.block<3,1>(3, k);
+
+      a_partial_dq.block<3,1>(0, k) +=
+        -S_vlin * domega_dq + S_omega * dvlin_dq;
+
+      // wrt v
+      const vector3_t dvlin_dv  = spatial_dv.block<3,1>(0, k);
+      const vector3_t domega_dv = spatial_dv.block<3,1>(3, k);
+
+      a_partial_dv.block<3,1>(0, k) +=
+        -S_vlin * domega_dv + S_omega * dvlin_dv;
+
+      // wrt a:
+      // no correction because omega and vlin do not depend on a.
+    }
+
     acceleration.dfdx.setZero(3, stateConverter_->getStateVariableDim());
-    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = spatial_dq.bottomRows(3);
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = spatial_dv.bottomRows(3);
+    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = a_partial_dq.bottomRows(3);
+    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = a_partial_dv.bottomRows(3);
 
     acceleration.dfdu.setZero(3, stateConverter_->getInputDim());
-    for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
-      ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
-      pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-      acceleration.dfdu.block(0,i*6, 3, 6) = (data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose()).bottomRows(3);
+    if (stateConverter_->getBaseVDim() > 0) {
+      for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
+        ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
+        pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
+        acceleration.dfdu.block(0,i*6, 3, 6) = (data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose()).bottomRows(3);
+      }
     }
-    acceleration.dfdu.rightCols(stateConverter_->getTangentDim()) = spatial_da.bottomRows(3);
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = (a_partial_da.rightCols(stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim())).bottomRows(3);
     return acceleration;
   }
 
@@ -343,13 +381,15 @@ namespace ocp_solver {
     acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = a_partial_dv;
 
     acceleration.dfdu.setZero(6, stateConverter_->getInputDim());
-    for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
-      ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
-      pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-      acceleration.dfdu.block(0,i*6, 6, 6) = data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose() + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose();
+    if (stateConverter_->getBaseVDim() > 0) {
+      for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
+        ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
+        pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
+        acceleration.dfdu.block(0,i*6, 6, 6) = data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose() + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose();
+      }
     }
 
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = a_partial_da.rightCols(stateConverter_->getJointDim()) + data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim());
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = a_partial_da.rightCols(stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim());
 
     return acceleration;
   }

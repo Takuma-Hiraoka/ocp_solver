@@ -8,7 +8,6 @@
 #include "ocp_solver/state_converter.h"
 #include "ocp_solver/contact_candidate.h"
 #include "ocp_solver/switched_model_reference_manager.h"
-#include "ocp_solver/ocp_pinocchio_mapping.h"
 #include "ocp_solver/ocp_sqp_mpc.h"
 
 namespace ocp_solver {
@@ -53,7 +52,6 @@ namespace ocp_solver {
     StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() { return *stateConverterADPtr_; }
     const StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() const { return *stateConverterADPtr_; }
     std::shared_ptr<SwitchedModelReferenceManager> getReferenceManagerPtr() { return referenceManagerPtr_; }
-    const OCPPinocchioMapping& getMapping() const { return *mappingPtr_; }
     const ocs2::OptimalControlProblem& getOptimalControlProblem() const override { return *this->problemPtr_; }
     const ocs2::Initializer& getInitializer() const override { return *this->initializerPtr_; }
 
@@ -67,7 +65,6 @@ namespace ocp_solver {
     std::unique_ptr<StateConverter<ocs2::ad_scalar_t>> stateConverterADPtr_;
     std::shared_ptr<SwitchedModelReferenceManager> referenceManagerPtr_;
     std::unique_ptr<ocs2::OptimalControlProblem> problemPtr_;
-    std::unique_ptr<OCPPinocchioMapping> mappingPtr_;
     std::unique_ptr<ocs2::Initializer> initializerPtr_;
 
     ocs2::mpc::Settings mpcSettings_;
