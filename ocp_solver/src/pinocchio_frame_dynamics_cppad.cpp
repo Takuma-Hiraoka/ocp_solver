@@ -1,6 +1,6 @@
 #include <pinocchio/fwd.hpp>  // forward declarations must be included first.
 
-#include "ocp_solver/pinocchio_endeffector_dynamics_cppad.h"
+#include "ocp_solver/pinocchio_frame_dynamics_cppad.h"
 #include "ocp_solver/dynamics_helper_functions.h"
 
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
@@ -10,17 +10,17 @@
 
 namespace ocp_solver {
 
-  PinocchioEndEffectorDynamicsCppAd::PinocchioEndEffectorDynamicsCppAd(const ocs2::PinocchioInterface& pinocchioInterface,
-                                                                       StateConverter<ocs2::ad_scalar_t>& stateConverter,
-                                                                       std::vector<std::string> endEffectorIds,
-                                                                       const std::string& modelName,
-                                                                       const std::string& modelFolder,
-                                                                       bool recompileLibraries,
-                                                                       bool verbose)
+  PinocchioFrameDynamicsCppAd::PinocchioFrameDynamicsCppAd(const ocs2::PinocchioInterface& pinocchioInterface,
+                                                           StateConverter<ocs2::ad_scalar_t>& stateConverter,
+                                                           std::vector<std::string> frameNames,
+                                                           const std::string& modelName,
+                                                           const std::string& modelFolder,
+                                                           bool recompileLibraries,
+                                                           bool verbose)
 
-  : endEffectorIds_(std::move(endEffectorIds)), pinocchioInterfaceCppAd_(pinocchioInterface.toCppAd()), mappingPtr_(&stateConverter) {
-    for (const auto& bodyName : endEffectorIds_) {
-      endEffectorFrameIds_.push_back(pinocchioInterface.getModel().getFrameId(bodyName));
+  : frameNames_(std::move(frameNames)), pinocchioInterfaceCppAd_(pinocchioInterface.toCppAd()), mappingPtr_(&stateConverter) {
+    for (const auto& bodyName : frameNames_) {
+      frameIds_.push_back(pinocchioInterface.getModel().getFrameId(bodyName));
     }
 
     size_t stateDim = mappingPtr_->getStateDim();
@@ -52,7 +52,7 @@ namespace ocp_solver {
                                   y = getOrientationErrorCppAd(x, params);
                                 };
     orientationErrorCppAdInterfacePtr_.reset(
-                                             new ocs2::CppAdInterface(orientationErrorFunc, stateVariableDim, stateDim + 4 * endEffectorFrameIds_.size(), modelName + "_orientationError", modelFolder));
+                                             new ocs2::CppAdInterface(orientationErrorFunc, stateVariableDim, stateDim + 4 * frameIds_.size(), modelName + "_orientationError", modelFolder));
 
     // velocity function
     auto angularVelocityFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
@@ -121,7 +121,7 @@ namespace ocp_solver {
     }
   }
 
-  PinocchioEndEffectorDynamicsCppAd::PinocchioEndEffectorDynamicsCppAd(const PinocchioEndEffectorDynamicsCppAd& rhs)
+  PinocchioFrameDynamicsCppAd::PinocchioFrameDynamicsCppAd(const PinocchioFrameDynamicsCppAd& rhs)
     : EndEffectorKinematics<ocs2::scalar_t>(rhs),
       positionCppAdInterfacePtr_(new ocs2::CppAdInterface(*rhs.positionCppAdInterfacePtr_)),
       velocityCppAdInterfacePtr_(new ocs2::CppAdInterface(*rhs.velocityCppAdInterfacePtr_)),
@@ -132,20 +132,16 @@ namespace ocp_solver {
       linearAccelerationCppAdInterfacePtr_(new ocs2::CppAdInterface(*rhs.linearAccelerationCppAdInterfacePtr_)),
       angularAccelerationCppAdInterfacePtr_(new ocs2::CppAdInterface(*rhs.angularAccelerationCppAdInterfacePtr_)),
       accelerationsCppAdInterfacePtr_(new ocs2::CppAdInterface(*rhs.accelerationsCppAdInterfacePtr_)),
-      endEffectorIds_(rhs.endEffectorIds_),
-      endEffectorFrameIds_(rhs.endEffectorFrameIds_),
+      frameNames_(rhs.frameNames_),
+      frameIds_(rhs.frameIds_),
       pinocchioInterfaceCppAd_(rhs.pinocchioInterfaceCppAd_),
       mappingPtr_(rhs.mappingPtr_) {}
 
-  PinocchioEndEffectorDynamicsCppAd* PinocchioEndEffectorDynamicsCppAd::clone() const {
-    return new PinocchioEndEffectorDynamicsCppAd(*this);
+  PinocchioFrameDynamicsCppAd* PinocchioFrameDynamicsCppAd::clone() const {
+    return new PinocchioFrameDynamicsCppAd(*this);
   }
 
-  const std::vector<std::string>& PinocchioEndEffectorDynamicsCppAd::getIds() const {
-    return endEffectorIds_;
-  }
-
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getPositionCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getPositionCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& p) {
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
@@ -153,35 +149,35 @@ namespace ocp_solver {
     pinocchio::forwardKinematics(model, data, q);
     pinocchio::updateFramePlacements(model, data);
 
-    ocs2::ad_vector_t positions(3 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t positions(3 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       positions.segment<3>(3 * i) = data.oMf[frameId].translation();
     }
     return positions;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getPosition(const vector_t& state) const -> std::vector<vector3_t> {
+  auto PinocchioFrameDynamicsCppAd::getPosition(const vector_t& state) const -> std::vector<vector3_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t positionValues = positionCppAdInterfacePtr_->getFunctionValue(dx, state);
 
     std::vector<vector3_t> positions;
-    positions.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    positions.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       positions.emplace_back(positionValues.segment<3>(3 * i));
     }
     return positions;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getPositionLinearApproximation(
-                                                                                                                         const vector_t& state) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getPositionLinearApproximation(
+                                                                                                                   const vector_t& state) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t positionValues = positionCppAdInterfacePtr_->getFunctionValue(dx, state);
     const ocs2::matrix_t positionJacobian = positionCppAdInterfacePtr_->getJacobian(dx, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> positions;
-    positions.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    positions.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation pos;
       pos.f = positionValues.segment<3>(3 * i);
       pos.dfdx = positionJacobian.block(3 * i, 0, 3, dx.rows());
@@ -190,7 +186,7 @@ namespace ocp_solver {
     return positions;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getVelocityCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getVelocityCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
@@ -199,30 +195,30 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, v);
 
-    ocs2::ad_vector_t velocities(3 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t velocities(3 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       velocities.segment<3>(3 * i) = pinocchio::getFrameVelocity(model, data, frameId, rf).linear();
     }
     return velocities;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getVelocity(const vector_t& state, const vector_t& input) const -> std::vector<vector3_t> {
+  auto PinocchioFrameDynamicsCppAd::getVelocity(const vector_t& state, const vector_t& input) const -> std::vector<vector3_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = velocityCppAdInterfacePtr_->getFunctionValue(stateInput, state);
 
     std::vector<vector3_t> velocities;
-    velocities.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    velocities.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       velocities.emplace_back(velocityValues.segment<3>(3 * i));
     }
     return velocities;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getVelocityLinearApproximation(
-                                                                                                                         const vector_t& state, const vector_t& input) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getVelocityLinearApproximation(
+                                                                                                                   const vector_t& state, const vector_t& input) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
@@ -230,8 +226,8 @@ namespace ocp_solver {
     const ocs2::matrix_t velocityJacobian = velocityCppAdInterfacePtr_->getJacobian(stateInput, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> velocities;
-    velocities.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    velocities.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation vel;
       vel.f = velocityValues.segment<3>(3 * i);
       vel.dfdx = velocityJacobian.block(3 * i, 0, 3, dx.rows());
@@ -241,19 +237,19 @@ namespace ocp_solver {
     return velocities;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getOrientation(const vector_t& state) const -> std::vector<quaternion_t> {
+  auto PinocchioFrameDynamicsCppAd::getOrientation(const vector_t& state) const -> std::vector<quaternion_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     const vector_t orientationValues = orientationCppAdInterfacePtr_->getFunctionValue(dx, state);
 
     std::vector<quaternion_t> orientations;
-    orientations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    orientations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       orientations.emplace_back(quaternion_t(orientationValues.segment<4>(4 * i)));
     }
     return orientations;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getOrientationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getOrientationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& p) {
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
@@ -261,18 +257,18 @@ namespace ocp_solver {
     pinocchio::forwardKinematics(model, data, q);
     pinocchio::updateFramePlacements(model, data);
 
-    ocs2::ad_vector_t orientations(4 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      orientations.segment<4>(4 * i) = ocs2::matrixToQuaternion(data.oMf[endEffectorFrameIds_[i]].rotation()).coeffs();
+    ocs2::ad_vector_t orientations(4 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      orientations.segment<4>(4 * i) = ocs2::matrixToQuaternion(data.oMf[frameIds_[i]].rotation()).coeffs();
     }
     return orientations;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getOrientationError(
-                                                              const vector_t& state, const std::vector<quaternion_t>& referenceOrientations) const -> std::vector<vector3_t> {
-    vector_t params(state.rows() + 4 * endEffectorIds_.size());
+  auto PinocchioFrameDynamicsCppAd::getOrientationError(
+                                                        const vector_t& state, const std::vector<quaternion_t>& referenceOrientations) const -> std::vector<vector3_t> {
+    vector_t params(state.rows() + 4 * frameNames_.size());
     params.head(state.rows()) = state;
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       params.segment<4>(state.rows() + i * 4) = referenceOrientations[i].coeffs();
     }
 
@@ -280,18 +276,18 @@ namespace ocp_solver {
     const vector_t errorValues = orientationErrorCppAdInterfacePtr_->getFunctionValue(dx, params);
 
     std::vector<vector3_t> errors;
-    errors.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    errors.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       errors.emplace_back(errorValues.segment<3>(3 * i));
     }
     return errors;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getOrientationErrorLinearApproximation(
-                                                                                                                                 const vector_t& state, const std::vector<quaternion_t>& referenceOrientations) const {
-    vector_t params(state.rows() + 4 * endEffectorIds_.size());
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getOrientationErrorLinearApproximation(
+                                                                                                                           const vector_t& state, const std::vector<quaternion_t>& referenceOrientations) const {
+    vector_t params(state.rows() + 4 * frameNames_.size());
     params.head(state.rows()) = state;
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       params.segment<4>(state.rows() + i * 4) = referenceOrientations[i].coeffs();
     }
 
@@ -300,8 +296,8 @@ namespace ocp_solver {
     const ocs2::matrix_t errorJacobian = orientationErrorCppAdInterfacePtr_->getJacobian(dx, params);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> errors;
-    errors.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    errors.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation err;
       err.f = errorValues.segment<3>(3 * i);
       err.dfdx = errorJacobian.block(3 * i, 0, 3, dx.rows());
@@ -310,7 +306,7 @@ namespace ocp_solver {
     return errors;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getOrientationErrorCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& params) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getOrientationErrorCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& params) {
     using ad_quaternion_t = Eigen::Quaternion<ocs2::ad_scalar_t>;
 
     const auto& model = pinocchioInterfaceCppAd_.getModel();
@@ -320,9 +316,9 @@ namespace ocp_solver {
     pinocchio::forwardKinematics(model, data, q);
     pinocchio::updateFramePlacements(model, data);
 
-    ocs2::ad_vector_t errors(3 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t errors(3 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       // TODO
       const auto& R = data.oMf[frameId].rotation();
 
@@ -352,7 +348,7 @@ namespace ocp_solver {
     return errors;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getAngularVelocityCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getAngularVelocityCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
@@ -361,30 +357,30 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, v);
 
-    ocs2::ad_vector_t angularVelocities(3 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t angularVelocities(3 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       angularVelocities.segment<3>(3 * i) = pinocchio::getFrameVelocity(model, data, frameId, rf).angular();
     }
     return angularVelocities;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getAngularVelocity(const vector_t& state, const vector_t& input) const -> std::vector<vector3_t> {
+  auto PinocchioFrameDynamicsCppAd::getAngularVelocity(const vector_t& state, const vector_t& input) const -> std::vector<vector3_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = angularVelocityCppAdInterfacePtr_->getFunctionValue(stateInput, state);
 
     std::vector<vector3_t> velocities;
-    velocities.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    velocities.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       velocities.emplace_back(velocityValues.segment<3>(3 * i));
     }
     return velocities;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getAngularVelocityLinearApproximation(
-                                                                                                                                const vector_t& state, const vector_t& input) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getAngularVelocityLinearApproximation(
+                                                                                                                          const vector_t& state, const vector_t& input) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
@@ -392,8 +388,8 @@ namespace ocp_solver {
     const ocs2::matrix_t velocityJacobian = angularVelocityCppAdInterfacePtr_->getJacobian(stateInput, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> velocities;
-    velocities.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    velocities.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation vel;
       vel.f = velocityValues.segment<3>(3 * i);
       vel.dfdx = velocityJacobian.block(3 * i, 0, 3, dx.rows());
@@ -403,7 +399,7 @@ namespace ocp_solver {
     return velocities;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getTwistCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getTwistCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
@@ -412,9 +408,9 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, v);
 
-    ocs2::ad_vector_t twists(6 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t twists(6 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       auto motion = pinocchio::getFrameVelocity(model, data, frameId, rf);
       ocs2::ad_vector_t currTwist(6);
       currTwist.head(3) = motion.linear();
@@ -424,22 +420,22 @@ namespace ocp_solver {
     return twists;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getTwist(const vector_t& state, const vector_t& input) const -> std::vector<vector6_t> {
+  auto PinocchioFrameDynamicsCppAd::getTwist(const vector_t& state, const vector_t& input) const -> std::vector<vector6_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = twistCppAdInterfacePtr_->getFunctionValue(stateInput, state);
 
     std::vector<vector6_t> velocities;
-    velocities.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    velocities.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       velocities.emplace_back(velocityValues.segment<6>(6 * i));
     }
     return velocities;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getTwistLinearApproximation(const vector_t& state,
-                                                                                                                      const vector_t& input) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getTwistLinearApproximation(const vector_t& state,
+                                                                                                                const vector_t& input) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
@@ -447,8 +443,8 @@ namespace ocp_solver {
     const ocs2::matrix_t velocityJacobian = twistCppAdInterfacePtr_->getJacobian(stateInput, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> velocities;
-    velocities.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    velocities.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation vel;
       vel.f = velocityValues.segment<6>(6 * i);
       vel.dfdx = velocityJacobian.block(6 * i, 0, 6, dx.rows());
@@ -458,7 +454,7 @@ namespace ocp_solver {
     return velocities;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getLinearAccelerationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getLinearAccelerationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
@@ -468,31 +464,31 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, v, a);
 
-    ocs2::ad_vector_t accelerations(3 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t accelerations(3 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       accelerations.segment<3>(3 * i) = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf).linear();
     }
     return accelerations;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getLinearAcceleration(const vector_t& state,
-                                                                const vector_t& input) const -> std::vector<vector3_t> { 
+  auto PinocchioFrameDynamicsCppAd::getLinearAcceleration(const vector_t& state,
+                                                          const vector_t& input) const -> std::vector<vector3_t> { 
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t accelerationValues = linearAccelerationCppAdInterfacePtr_->getFunctionValue(stateInput, state);
 
     std::vector<vector3_t> accelerations;
-    accelerations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    accelerations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       accelerations.emplace_back(accelerationValues.segment<3>(3 * i));
     }
     return accelerations;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getLinearAccelerationLinearApproximation(
-                                                                                                                                   const vector_t& state, const vector_t& input) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getLinearAccelerationLinearApproximation(
+                                                                                                                             const vector_t& state, const vector_t& input) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
@@ -500,8 +496,8 @@ namespace ocp_solver {
     const ocs2::matrix_t accelerationJacobian = linearAccelerationCppAdInterfacePtr_->getJacobian(stateInput, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> accelerations;
-    accelerations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    accelerations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation acc;
       acc.f = accelerationValues.segment<3>(3 * i);
       acc.dfdx = accelerationJacobian.block(3 * i, 0, 3, dx.rows());
@@ -511,7 +507,7 @@ namespace ocp_solver {
     return accelerations;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getAngularAccelerationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getAngularAccelerationCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
@@ -521,31 +517,31 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, v, a);
 
-    ocs2::ad_vector_t accelerations(3 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t accelerations(3 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       accelerations.segment<3>(3 * i) = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf).angular();
     }
     return accelerations;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getAngularAcceleration(const vector_t& state,
-                                                                 const vector_t& input) const -> std::vector<vector3_t> {
+  auto PinocchioFrameDynamicsCppAd::getAngularAcceleration(const vector_t& state,
+                                                           const vector_t& input) const -> std::vector<vector3_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t accelerationValues = angularAccelerationCppAdInterfacePtr_->getFunctionValue(stateInput, state);
 
     std::vector<vector3_t> accelerations;
-    accelerations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    accelerations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       accelerations.emplace_back(accelerationValues.segment<3>(3 * i));
     }
     return accelerations;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getAngularAccelerationLinearApproximation(
-                                                                                                                                    const vector_t& state, const vector_t& input) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getAngularAccelerationLinearApproximation(
+                                                                                                                              const vector_t& state, const vector_t& input) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
@@ -553,8 +549,8 @@ namespace ocp_solver {
     const ocs2::matrix_t accelerationJacobian = angularAccelerationCppAdInterfacePtr_->getJacobian(stateInput, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> accelerations;
-    accelerations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    accelerations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation acc;
       acc.f = accelerationValues.segment<3>(3 * i);
       acc.dfdx = accelerationJacobian.block(3 * i, 0, 3, dx.rows());
@@ -564,7 +560,7 @@ namespace ocp_solver {
     return accelerations;
   }
 
-  ocs2::ad_vector_t PinocchioEndEffectorDynamicsCppAd::getAccelerationsCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
+  ocs2::ad_vector_t PinocchioFrameDynamicsCppAd::getAccelerationsCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p) {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const auto& model = pinocchioInterfaceCppAd_.getModel();
     auto& data = pinocchioInterfaceCppAd_.getData();
@@ -574,9 +570,9 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, v, a);
 
-    ocs2::ad_vector_t accelerations(6 * endEffectorFrameIds_.size());
-    for (size_t i = 0; i < endEffectorFrameIds_.size(); i++) {
-      const size_t frameId = endEffectorFrameIds_[i];
+    ocs2::ad_vector_t accelerations(6 * frameIds_.size());
+    for (size_t i = 0; i < frameIds_.size(); i++) {
+      const size_t frameId = frameIds_[i];
       auto motion = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf);
       ocs2::ad_vector_t currAcceleration(6);
       currAcceleration.head(3) = motion.linear();
@@ -586,22 +582,22 @@ namespace ocp_solver {
     return accelerations;
   }
 
-  auto PinocchioEndEffectorDynamicsCppAd::getAccelerations(const vector_t& state, const vector_t& input) const -> std::vector<vector6_t> {
+  auto PinocchioFrameDynamicsCppAd::getAccelerations(const vector_t& state, const vector_t& input) const -> std::vector<vector6_t> {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
     const vector_t velocityValues = accelerationsCppAdInterfacePtr_->getFunctionValue(stateInput, state);
 
     std::vector<vector6_t> accelerations;
-    accelerations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    accelerations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       accelerations.emplace_back(velocityValues.segment<6>(6 * i));
     }
     return accelerations;
   }
 
-  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioEndEffectorDynamicsCppAd::getAccelerationsLinearApproximation(
-                                                                                                                              const vector_t& state, const vector_t& input) const {
+  std::vector<ocs2::VectorFunctionLinearApproximation> PinocchioFrameDynamicsCppAd::getAccelerationsLinearApproximation(
+                                                                                                                        const vector_t& state, const vector_t& input) const {
     const vector_t dx = vector_t::Zero(2*pinocchioInterfaceCppAd_.getModel().nv);
     vector_t stateInput(dx.rows() + input.rows());
     stateInput << dx, input;
@@ -609,8 +605,8 @@ namespace ocp_solver {
     const ocs2::matrix_t velocityJacobian = accelerationsCppAdInterfacePtr_->getJacobian(stateInput, state);
 
     std::vector<ocs2::VectorFunctionLinearApproximation> accelerations;
-    accelerations.reserve(endEffectorIds_.size());
-    for (size_t i = 0; i < endEffectorIds_.size(); i++) {
+    accelerations.reserve(frameNames_.size());
+    for (size_t i = 0; i < frameNames_.size(); i++) {
       ocs2::VectorFunctionLinearApproximation acc;
       acc.f = velocityValues.segment<6>(6 * i);
       acc.dfdx = velocityJacobian.block(6 * i, 0, 6, dx.rows());

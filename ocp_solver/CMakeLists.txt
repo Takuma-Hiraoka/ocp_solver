@@ -39,8 +39,8 @@ add_library(${PROJECT_NAME}
   src/system_dynamics_ad.cpp
   src/ocp_pre_computation.cpp
   src/gravity_compensation_initializer.cpp
-  src/pinocchio_endeffector_dynamics_cppad.cpp
-  src/pinocchio_endeffector_dynamics.cpp
+  src/pinocchio_frame_dynamics_cppad.cpp
+  src/pinocchio_frame_dynamics.cpp
   src/ocp_sqp_solver.cpp
   src/ocp_transcription.cpp
   src/ocp_sensitivity_integrator.cpp

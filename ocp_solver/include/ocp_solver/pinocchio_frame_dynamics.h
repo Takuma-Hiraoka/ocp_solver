@@ -12,7 +12,7 @@
 
 namespace ocp_solver {
 
-  class PinocchioEndEffectorDynamics {
+  class PinocchioFrameDynamics {
   public:
     using vector3_t = Eigen::Matrix<ocs2::scalar_t, 3, 1>;
     using matrix3x_t = Eigen::Matrix<ocs2::scalar_t, 3, Eigen::Dynamic>;
@@ -21,16 +21,16 @@ namespace ocp_solver {
     using vector_t = Eigen::Matrix<ocs2::scalar_t, Eigen::Dynamic, 1>;
     using quaternion_t = Eigen::Quaternion<ocs2::scalar_t>;
 
-    PinocchioEndEffectorDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
+    PinocchioFrameDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
                                  StateConverter<ocs2::scalar_t>& stateConverter,
-                                 std::string endEffectorId);
+                                 std::string frameName);
 
-    ~PinocchioEndEffectorDynamics() = default;
-    PinocchioEndEffectorDynamics* clone() const;
-    PinocchioEndEffectorDynamics& operator=(const PinocchioEndEffectorDynamics&) = delete;
+    ~PinocchioFrameDynamics() = default;
+    PinocchioFrameDynamics* clone() const;
+    PinocchioFrameDynamics& operator=(const PinocchioFrameDynamics&) = delete;
 
-    const std::string& getId() const { return endEffectorId_; };
-    const std::size_t& getFrameId() const { return endEffectorFrameId_; };
+    const std::string& getId() const { return frameName_; };
+    const std::size_t& getFrameId() const { return frameId_; };
 
     ocs2::vector_t getPosition(const OCPPreComputation& preComputation) const;
     ocs2::vector_t getVelocity(const OCPPreComputation& preComputation) const;
@@ -53,10 +53,10 @@ namespace ocp_solver {
     ocs2::VectorFunctionLinearApproximation getAccelerationsLinearApproximation(const OCPPreComputation& preComputation) const;
 
   private:
-    PinocchioEndEffectorDynamics(const PinocchioEndEffectorDynamics& rhs);
+    PinocchioFrameDynamics(const PinocchioFrameDynamics& rhs);
 
-    std::string endEffectorId_;
-    size_t endEffectorFrameId_;
+    std::string frameName_;
+    size_t frameId_;
 
     StateConverter<ocs2::scalar_t>* stateConverter_;
   };

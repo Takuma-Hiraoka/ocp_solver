@@ -2,15 +2,15 @@
 #include "ocp_constraint/point_constraint.h"
 
 namespace ocp_constraint {
-  PointConstraint::PointConstraint(const ocp_solver::PinocchioEndEffectorDynamics& endEffectorDynamics,
+  PointConstraint::PointConstraint(const ocp_solver::PinocchioFrameDynamics& frameDynamics,
                                    const pinocchio::SE3 targetPose)
     : StateConstraint(ocs2::ConstraintOrder::Linear),
       targetPose_(targetPose),
-      endEffectorDynamicsPtr_(endEffectorDynamics.clone()) {}
+      frameDynamicsPtr_(frameDynamics.clone()) {}
 
   PointConstraint::PointConstraint(const PointConstraint& rhs)
     : StateConstraint(rhs),
-      endEffectorDynamicsPtr_(rhs.endEffectorDynamicsPtr_->clone()),
+      frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
       targetPose_(rhs.targetPose_) {}
 
   ocs2::vector_t PointConstraint::getValue(ocs2::scalar_t time,
@@ -18,8 +18,8 @@ namespace ocp_constraint {
                                            const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::vector_t constraint(6);
-    constraint = endEffectorDynamicsPtr_->getPosition(ocpPreComp) - targetPose_.translation(),
-        endEffectorDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetPose_.rotation()));
+    constraint = frameDynamicsPtr_->getPosition(ocpPreComp) - targetPose_.translation(),
+        frameDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetPose_.rotation()));
     return constraint;
   }
 
@@ -30,9 +30,9 @@ namespace ocp_constraint {
 
     ocs2::VectorFunctionLinearApproximation approximation = ocs2::VectorFunctionLinearApproximation(6, 2*ocpPreComp.getPinocchioInterface().getModel().nv, 0);
 
-    const auto positionApprox = endEffectorDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
+    const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
     const auto orientationApprox =
-      endEffectorDynamicsPtr_->getOrientationErrorLinearApproximation(ocpPreComp, ocs2::matrixToQuaternion(targetPose_.rotation()));
+      frameDynamicsPtr_->getOrientationErrorLinearApproximation(ocpPreComp, ocs2::matrixToQuaternion(targetPose_.rotation()));
 
     approximation.f.head(3).noalias() += positionApprox.f - targetPose_.translation();
     approximation.f.tail(3).noalias() += orientationApprox.f;

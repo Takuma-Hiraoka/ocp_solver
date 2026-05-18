@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <ocs2_core/constraint/StateConstraint.h>
-#include <ocp_solver/pinocchio_endeffector_dynamics_cppad.h>
+#include <ocp_solver/pinocchio_frame_dynamics_cppad.h>
 #include <ocp_solver/switched_model_reference_manager.h>
 
 namespace ocp_constraint {
@@ -16,7 +16,7 @@ namespace ocp_constraint {
     };
 
     SwingPositionConstraintAD(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                              const ocp_solver::PinocchioEndEffectorDynamicsCppAd& endEffectorDynamics,
+                              const ocp_solver::PinocchioFrameDynamicsCppAd& endFrameDynamics,
                               Config config = Config(),
                               ocs2::scalar_t ignoreTime = 0.5,
                               double height = 0.1,
@@ -28,7 +28,7 @@ namespace ocp_constraint {
     void configure(Config&& config);
     void configure(const Config& config) { this->configure(Config(config)); }
 
-    ocp_solver::PinocchioEndEffectorDynamicsCppAd& getEndEffectorDynamics() { return *endEffectorDynamicsPtr_; }
+    ocp_solver::PinocchioFrameDynamicsCppAd& getFrameDynamics() { return *frameDynamicsPtr_; }
 
     bool isActive(ocs2::scalar_t time) const override;
     size_t getNumConstraints(ocs2::scalar_t time) const override { return 3; }
@@ -43,7 +43,7 @@ namespace ocp_constraint {
   private:
     SwingPositionConstraintAD(const SwingPositionConstraintAD& rhs);
     const ocp_solver::SwitchedModelReferenceManager* referenceManagerPtr_;
-    std::unique_ptr<ocp_solver::PinocchioEndEffectorDynamicsCppAd> endEffectorDynamicsPtr_;
+    std::unique_ptr<ocp_solver::PinocchioFrameDynamicsCppAd> frameDynamicsPtr_;
     Config config_;
     ocs2::scalar_t ignoreTime_ = 0.5;
     double height_ = 0.1;

@@ -6,7 +6,6 @@
 
 #include <ocs2_core/Types.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
-#include <ocs2_pinocchio_interface/PinocchioStateInputMapping.h>
 #include <ocs2_robotic_tools/end_effector/EndEffectorKinematics.h>
 
 #include <ocs2_core/automatic_differentiation/CppAdInterface.h>
@@ -15,7 +14,7 @@
 
 namespace ocp_solver {
 
-  class PinocchioEndEffectorDynamicsCppAd final : public ocs2::EndEffectorKinematics<ocs2::scalar_t> {
+  class PinocchioFrameDynamicsCppAd final : public ocs2::EndEffectorKinematics<ocs2::scalar_t> {
   public:
     using vector3_t = Eigen::Matrix<ocs2::scalar_t, 3, 1>;
     using matrix3x_t = Eigen::Matrix<ocs2::scalar_t, 3, Eigen::Dynamic>;
@@ -26,20 +25,20 @@ namespace ocp_solver {
     using update_pinocchio_interface_callback =
       std::function<void(const ocs2::ad_vector_t& state, ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface)>;
 
-    PinocchioEndEffectorDynamicsCppAd(const ocs2::PinocchioInterface& pinocchioInterface,
+    PinocchioFrameDynamicsCppAd(const ocs2::PinocchioInterface& pinocchioInterface,
                                       StateConverter<ocs2::ad_scalar_t>& stateConverter,
-                                      std::vector<std::string> endEffectorIds,
+                                      std::vector<std::string> frameNames,
                                       const std::string& modelName,
                                       const std::string& modelFolder = "build/cppad_autocode_gen",
                                       bool recompileLibraries = false,
                                       bool verbose = false);
 
-    ~PinocchioEndEffectorDynamicsCppAd() override = default;
-    PinocchioEndEffectorDynamicsCppAd* clone() const override;
-    PinocchioEndEffectorDynamicsCppAd& operator=(const PinocchioEndEffectorDynamicsCppAd&) = delete;
+    ~PinocchioFrameDynamicsCppAd() override = default;
+    PinocchioFrameDynamicsCppAd* clone() const override;
+    PinocchioFrameDynamicsCppAd& operator=(const PinocchioFrameDynamicsCppAd&) = delete;
 
-    const std::vector<std::string>& getIds() const override;
-    const std::vector<std::size_t>& getFrameIds() const { return endEffectorFrameIds_; }
+    const std::vector<std::string>& getIds() const override { return frameNames_; }
+    const std::vector<std::size_t>& getFrameIds() const { return frameIds_; }
 
     std::vector<vector3_t> getPosition(const vector_t& state) const override;
     std::vector<vector3_t> getVelocity(const vector_t& state, const vector_t& input) const override;
@@ -79,7 +78,7 @@ namespace ocp_solver {
     ocs2::ad_vector_t getAccelerationsCppAd(const ocs2::ad_vector_t& dx, const ocs2::ad_vector_t& input, const ocs2::ad_vector_t& p);
 
   private:
-    PinocchioEndEffectorDynamicsCppAd(const PinocchioEndEffectorDynamicsCppAd& rhs);
+    PinocchioFrameDynamicsCppAd(const PinocchioFrameDynamicsCppAd& rhs);
 
     std::unique_ptr<ocs2::CppAdInterface> positionCppAdInterfacePtr_;
     std::unique_ptr<ocs2::CppAdInterface> velocityCppAdInterfacePtr_;
@@ -91,8 +90,8 @@ namespace ocp_solver {
     std::unique_ptr<ocs2::CppAdInterface> angularAccelerationCppAdInterfacePtr_;
     std::unique_ptr<ocs2::CppAdInterface> accelerationsCppAdInterfacePtr_;
 
-    const std::vector<std::string> endEffectorIds_;
-    std::vector<size_t> endEffectorFrameIds_;
+    const std::vector<std::string> frameNames_;
+    std::vector<size_t> frameIds_;
 
     ocs2::PinocchioInterfaceCppAd pinocchioInterfaceCppAd_;
     StateConverter<ocs2::ad_scalar_t>* mappingPtr_;

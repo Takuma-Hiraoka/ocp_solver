@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <ocs2_core/constraint/StateConstraint.h>
-#include <ocp_solver/pinocchio_endeffector_dynamics.h>
+#include <ocp_solver/pinocchio_frame_dynamics.h>
 #include <ocp_solver/switched_model_reference_manager.h>
 
 namespace ocp_constraint {
@@ -16,11 +16,11 @@ namespace ocp_constraint {
     };
 
     SwingPositionConstraint(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                              const ocp_solver::PinocchioEndEffectorDynamics& endEffectorDynamics,
-                              Config config = Config(),
-                              ocs2::scalar_t ignoreTime = 0.5,
-                              double height = 0.1,
-                              double swingWeight = 3.0);
+                            const ocp_solver::PinocchioFrameDynamics& frameDynamics,
+                            Config config = Config(),
+                            ocs2::scalar_t ignoreTime = 0.5,
+                            double height = 0.1,
+                            double swingWeight = 3.0);
 
     ~SwingPositionConstraint() override = default;
     SwingPositionConstraint* clone() const override { return new SwingPositionConstraint(*this); }
@@ -28,7 +28,7 @@ namespace ocp_constraint {
     void configure(Config&& config);
     void configure(const Config& config) { this->configure(Config(config)); }
 
-    ocp_solver::PinocchioEndEffectorDynamics& getEndEffectorDynamics() { return *endEffectorDynamicsPtr_; }
+    ocp_solver::PinocchioFrameDynamics& getFrameDynamics() { return *frameDynamicsPtr_; }
 
     bool isActive(ocs2::scalar_t time) const override;
     size_t getNumConstraints(ocs2::scalar_t time) const override { return 3; }
@@ -43,7 +43,7 @@ namespace ocp_constraint {
   private:
     SwingPositionConstraint(const SwingPositionConstraint& rhs);
     const ocp_solver::SwitchedModelReferenceManager* referenceManagerPtr_;
-    std::unique_ptr<ocp_solver::PinocchioEndEffectorDynamics> endEffectorDynamicsPtr_;
+    std::unique_ptr<ocp_solver::PinocchioFrameDynamics> frameDynamicsPtr_;
     Config config_;
     ocs2::scalar_t ignoreTime_ = 0.5;
     double height_ = 0.1;

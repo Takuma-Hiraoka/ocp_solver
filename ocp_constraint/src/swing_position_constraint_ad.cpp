@@ -3,14 +3,14 @@
 
 namespace ocp_constraint {
   SwingPositionConstraintAD::SwingPositionConstraintAD(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                                                       const ocp_solver::PinocchioEndEffectorDynamicsCppAd& endEffectorDynamics,
+                                                       const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
                                                        Config config,
                                                        ocs2::scalar_t ignoreTime,
                                                        double height,
                                                        double swingWeight)
     : StateConstraint(ocs2::ConstraintOrder::Linear),
       referenceManagerPtr_(&referenceManager),
-      endEffectorDynamicsPtr_(endEffectorDynamics.clone()),
+      frameDynamicsPtr_(frameDynamics.clone()),
       config_(std::move(config)),
       ignoreTime_(ignoreTime),
       height_(height),
@@ -19,7 +19,7 @@ namespace ocp_constraint {
   SwingPositionConstraintAD::SwingPositionConstraintAD(const SwingPositionConstraintAD& rhs)
     : StateConstraint(rhs),
       referenceManagerPtr_(rhs.referenceManagerPtr_),
-      endEffectorDynamicsPtr_(rhs.endEffectorDynamicsPtr_->clone()),
+      frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
       config_(rhs.config_) {}
 
   void SwingPositionConstraintAD::configure(Config&& config) {
@@ -29,7 +29,7 @@ namespace ocp_constraint {
   }
 
   bool SwingPositionConstraintAD::isActive(ocs2::scalar_t time) const {
-    bool inContact = referenceManagerPtr_->isInContact(time, endEffectorDynamicsPtr_->getFrameIds()[0]);
+    bool inContact = referenceManagerPtr_->isInContact(time, frameDynamicsPtr_->getFrameIds()[0]);
     if (inContact) return false;
     std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > nearestContacts = nearestContact(time);
     if (((nearestContacts[0].first != -1.0) && (time - nearestContacts[0].first) < ignoreTime_) ||
@@ -45,7 +45,7 @@ namespace ocp_constraint {
     pinocchio::SE3 afterSE3 = pinocchio::SE3::Identity();
     for (size_t i=0; (i<contactSchedule.contactSequence.size()) && (afterTime == -1.0); i++) {
       for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : contactSchedule.contactSequence[i]) {
-        if (contact.first == endEffectorDynamicsPtr_->getFrameIds()[0]) {
+        if (contact.first == frameDynamicsPtr_->getFrameIds()[0]) {
           if ((i < contactSchedule.eventTimes.size()) && (contactSchedule.eventTimes[i] <= time)) {
             beforeTime = contactSchedule.eventTimes[i];
             beforeSE3 = contact.second;
@@ -92,7 +92,7 @@ namespace ocp_constraint {
       }
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
       Eigen::Matrix<ocs2::scalar_t, 3, 1> xError;
-      xError << endEffectorDynamicsPtr_->getPosition(state).front() - targetPose.translation();
+      xError << frameDynamicsPtr_->getPosition(state).front() - targetPose.translation();
       f.noalias() += config_.Ax * xError;
     }
     return f;
@@ -132,7 +132,7 @@ namespace ocp_constraint {
         targetPose = nearestContacts[0].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1.0 - downRatio));
       }
-      const auto positionApprox = endEffectorDynamicsPtr_->getPositionLinearApproximation(state).front();
+      const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(state).front();
 
       linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
       linearApproximation.dfdx.topRows(3).noalias() += config_.Ax.topLeftCorner(3, 3) * positionApprox.dfdx;

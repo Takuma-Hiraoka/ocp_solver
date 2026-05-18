@@ -1,6 +1,6 @@
 #include <pinocchio/fwd.hpp>  // forward declarations must be included first.
 
-#include "ocp_solver/pinocchio_endeffector_dynamics.h"
+#include "ocp_solver/pinocchio_frame_dynamics.h"
 #include "ocp_solver/dynamics_helper_functions.h"
 
 #include <ocs2_robotic_tools/common/AngularVelocityMapping.h>
@@ -13,52 +13,52 @@
 
 namespace ocp_solver {
 
-  PinocchioEndEffectorDynamics::PinocchioEndEffectorDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
-                                                             StateConverter<ocs2::scalar_t>& stateConverter,
-                                                             std::string endEffectorId)
-    : stateConverter_(&stateConverter), endEffectorId_(std::move(endEffectorId)) {
-    endEffectorFrameId_ = pinocchioInterface.getModel().getFrameId(endEffectorId_);
+  PinocchioFrameDynamics::PinocchioFrameDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
+                                                 StateConverter<ocs2::scalar_t>& stateConverter,
+                                                 std::string frameName)
+    : stateConverter_(&stateConverter), frameName_(std::move(frameName)) {
+    frameId_ = pinocchioInterface.getModel().getFrameId(frameName_);
   }
 
-  PinocchioEndEffectorDynamics::PinocchioEndEffectorDynamics(const PinocchioEndEffectorDynamics& rhs)
-    : endEffectorId_(rhs.endEffectorId_),
-      endEffectorFrameId_(rhs.endEffectorFrameId_),
+  PinocchioFrameDynamics::PinocchioFrameDynamics(const PinocchioFrameDynamics& rhs)
+    : frameName_(rhs.frameName_),
+      frameId_(rhs.frameId_),
       stateConverter_(rhs.stateConverter_) {}
 
-  PinocchioEndEffectorDynamics* PinocchioEndEffectorDynamics::clone() const {
-    return new PinocchioEndEffectorDynamics(*this);
+  PinocchioFrameDynamics* PinocchioFrameDynamics::clone() const {
+    return new PinocchioFrameDynamics(*this);
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getPosition(const OCPPreComputation& preComputation) const {
+  ocs2::vector_t PinocchioFrameDynamics::getPosition(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
-    return pinocchioInterface.getData().oMf[endEffectorFrameId_].translation();
+    return pinocchioInterface.getData().oMf[frameId_].translation();
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getPositionLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getPositionLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
 
     ocs2::VectorFunctionLinearApproximation position;
-    position.f = data.oMf[endEffectorFrameId_].translation();
+    position.f = data.oMf[frameId_].translation();
 
     ocs2::matrix_t J = ocs2::matrix_t::Zero(6, model.nv);
-    pinocchio::getFrameJacobian(model, data, endEffectorFrameId_, rf, J);
+    pinocchio::getFrameJacobian(model, data, frameId_, rf, J);
     position.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     position.dfdx.leftCols(stateConverter_->getTangentDim()) = J.topRows(3);
     return position;
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getVelocity(const OCPPreComputation& preComputation) const {
+  ocs2::vector_t PinocchioFrameDynamics::getVelocity(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
-    return pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf).linear();
+    return pinocchio::getFrameVelocity(model, data, frameId_, rf).linear();
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getVelocityLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getVelocityLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
@@ -66,8 +66,8 @@ namespace ocp_solver {
 
     ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
-    pinocchio::getFrameVelocityDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, v_partial_dv);
-    const auto frameVel = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    pinocchio::getFrameVelocityDerivatives(model, data, frameId_, rf, v_partial_dq, v_partial_dv);
+    const auto frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     // For reference frame LOCAL_WORLD_ALIGNED the jacobian needs to be corrected.
     if (rf == pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED) {
       v_partial_dq.topRows<3>() += ocs2::skewSymmetricMatrix(vector3_t(frameVel.angular())) * v_partial_dv.topRows<3>();
@@ -81,42 +81,42 @@ namespace ocp_solver {
     return vel;
   }
 
-  PinocchioEndEffectorDynamics::quaternion_t PinocchioEndEffectorDynamics::getOrientation(const OCPPreComputation& preComputation) const {
+  PinocchioFrameDynamics::quaternion_t PinocchioFrameDynamics::getOrientation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
-    return ocs2::matrixToQuaternion(pinocchioInterface.getData().oMf[endEffectorFrameId_].rotation());
+    return ocs2::matrixToQuaternion(pinocchioInterface.getData().oMf[frameId_].rotation());
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getOrientationError(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const {
+  ocs2::vector_t PinocchioFrameDynamics::getOrientationError(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
-    return pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * pinocchioInterface.getData().oMf[endEffectorFrameId_].rotation());
+    return pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * pinocchioInterface.getData().oMf[frameId_].rotation());
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getOrientationErrorLinearApproximation(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getOrientationErrorLinearApproximation(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
 
     ocs2::VectorFunctionLinearApproximation error;
-    error.f = pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * data.oMf[endEffectorFrameId_].rotation());
+    error.f = pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * data.oMf[frameId_].rotation());
     ocs2::matrix_t J = ocs2::matrix_t::Zero(6, model.nv);
-    pinocchio::getFrameJacobian(model, data, endEffectorFrameId_, rf, J);
+    pinocchio::getFrameJacobian(model, data, frameId_, rf, J);
     matrix3x_t Jlog;
-    pinocchio::Jlog3(referenceOrientation.toRotationMatrix().transpose() * data.oMf[endEffectorFrameId_].rotation(), Jlog);
+    pinocchio::Jlog3(referenceOrientation.toRotationMatrix().transpose() * data.oMf[frameId_].rotation(), Jlog);
     error.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     error.dfdx.leftCols(stateConverter_->getTangentDim()) = Jlog * J.bottomRows<3>();
     return error;
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getAngularVelocity(const OCPPreComputation& preComputation) const {
+  ocs2::vector_t PinocchioFrameDynamics::getAngularVelocity(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
-    return pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf).angular();
+    return pinocchio::getFrameVelocity(model, data, frameId_, rf).angular();
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getAngularVelocityLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getAngularVelocityLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
@@ -124,8 +124,8 @@ namespace ocp_solver {
 
     ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
-    pinocchio::getFrameVelocityDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, v_partial_dv);
-    const auto frameVel = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    pinocchio::getFrameVelocityDerivatives(model, data, frameId_, rf, v_partial_dq, v_partial_dv);
+    const auto frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     ocs2::VectorFunctionLinearApproximation vel;
     vel.f = frameVel.angular();
     vel.dfdx.setZero(3, stateConverter_->getStateVariableDim());
@@ -135,26 +135,26 @@ namespace ocp_solver {
     return vel;
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getTwist(const OCPPreComputation& preComputation) const {
+  ocs2::vector_t PinocchioFrameDynamics::getTwist(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     vector6_t twist;
-    twist.head(3) = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf).linear();
-    twist.tail(3) = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf).angular();
+    twist.head(3) = pinocchio::getFrameVelocity(model, data, frameId_, rf).linear();
+    twist.tail(3) = pinocchio::getFrameVelocity(model, data, frameId_, rf).angular();
     return twist;
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getTwistLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getTwistLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
-    pinocchio::getFrameVelocityDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, v_partial_dv);
-    const auto frameVel = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    pinocchio::getFrameVelocityDerivatives(model, data, frameId_, rf, v_partial_dq, v_partial_dv);
+    const auto frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     // For reference frame LOCAL_WORLD_ALIGNED the jacobian needs to be corrected.
     if (rf == pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED) {
       v_partial_dq.topRows<3>() += ocs2::skewSymmetricMatrix(vector3_t(frameVel.angular())) * v_partial_dv.topRows<3>();
@@ -171,34 +171,34 @@ namespace ocp_solver {
     return twist;
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getLinearAcceleration(const OCPPreComputation& preComputation) const { 
-   ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+  ocs2::vector_t PinocchioFrameDynamics::getLinearAcceleration(const OCPPreComputation& preComputation) const { 
+    ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
-    return pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).linear();
+    return pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).linear();
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getLinearAccelerationLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getLinearAccelerationLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
 
     ocs2::VectorFunctionLinearApproximation acceleration;
-    acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).linear();
+    acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).linear();
 
     ocs2::matrix_t v_partial_dq(6, model.nv);
     ocs2::matrix_t spatial_dq(6, model.nv);
     ocs2::matrix_t spatial_dv(6, model.nv);
     ocs2::matrix_t spatial_da(6, model.nv);
-    pinocchio::getFrameAccelerationDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
+    pinocchio::getFrameAccelerationDerivatives(model, data, frameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
 
     ocs2::matrix_t a_partial_dq = spatial_dq;
     ocs2::matrix_t a_partial_dv = spatial_dv;
     ocs2::matrix_t a_partial_da = spatial_da;
 
-    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     const vector3_t omega = v_frame.angular();
     const vector3_t vlin  = v_frame.linear();
     const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
@@ -239,30 +239,30 @@ namespace ocp_solver {
     return acceleration;
   }
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getAngularAcceleration(const OCPPreComputation& preComputation) const {
-   ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+  ocs2::vector_t PinocchioFrameDynamics::getAngularAcceleration(const OCPPreComputation& preComputation) const {
+    ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
-    return pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).angular();
+    return pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).angular();
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getAngularAccelerationLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getAngularAccelerationLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
 
     ocs2::VectorFunctionLinearApproximation acceleration;
-    acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).angular();
+    acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).angular();
 
     ocs2::matrix_t v_partial_dq(6, model.nv);
     ocs2::matrix_t spatial_dq(6, model.nv);
     ocs2::matrix_t spatial_dv(6, model.nv);
     ocs2::matrix_t spatial_da(6, model.nv);
-    pinocchio::getFrameAccelerationDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
+    pinocchio::getFrameAccelerationDerivatives(model, data, frameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
 
-        ocs2::matrix_t a_partial_dq = spatial_dq;
+    ocs2::matrix_t a_partial_dq = spatial_dq;
     ocs2::matrix_t a_partial_dv = spatial_dv;
     ocs2::matrix_t a_partial_da = spatial_da;
     if (!a_partial_da.allFinite()) {
@@ -271,7 +271,7 @@ namespace ocp_solver {
                                             });
     }
 
-    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     const vector3_t omega = v_frame.angular();
     const vector3_t vlin  = v_frame.linear();
     const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
@@ -313,18 +313,18 @@ namespace ocp_solver {
   }
 
 
-  ocs2::vector_t PinocchioEndEffectorDynamics::getAccelerations(const OCPPreComputation& preComputation) const {
+  ocs2::vector_t PinocchioFrameDynamics::getAccelerations(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     vector6_t acceleration;
-    acceleration.head(3) = pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).linear();
-    acceleration.tail(3) = pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).angular();
+    acceleration.head(3) = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).linear();
+    acceleration.tail(3) = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).angular();
     return acceleration;
   }
 
-  ocs2::VectorFunctionLinearApproximation PinocchioEndEffectorDynamics::getAccelerationsLinearApproximation(const OCPPreComputation& preComputation) const {
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getAccelerationsLinearApproximation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
@@ -332,15 +332,15 @@ namespace ocp_solver {
 
     ocs2::VectorFunctionLinearApproximation acceleration;
     vector6_t acceleration_f;
-    acceleration_f.head(3) = pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).linear();
-    acceleration_f.tail(3) = pinocchio::getFrameClassicalAcceleration(model, data, endEffectorFrameId_, rf).angular();
+    acceleration_f.head(3) = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).linear();
+    acceleration_f.tail(3) = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).angular();
     acceleration.f = acceleration_f;
 
     ocs2::matrix_t v_partial_dq(6, model.nv);
     ocs2::matrix_t spatial_dq(6, model.nv);
     ocs2::matrix_t spatial_dv(6, model.nv);
     ocs2::matrix_t spatial_da(6, model.nv);
-    pinocchio::getFrameAccelerationDerivatives(model, data, endEffectorFrameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
+    pinocchio::getFrameAccelerationDerivatives(model, data, frameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
 
     ocs2::matrix_t a_partial_dq = spatial_dq;
     ocs2::matrix_t a_partial_dv = spatial_dv;
@@ -351,7 +351,7 @@ namespace ocp_solver {
                                             });
     }
 
-    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, endEffectorFrameId_, rf);
+    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     const vector3_t omega = v_frame.angular();
     const vector3_t vlin  = v_frame.linear();
     const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);

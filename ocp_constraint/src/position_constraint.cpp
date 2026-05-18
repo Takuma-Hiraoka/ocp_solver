@@ -3,19 +3,19 @@
 
 namespace ocp_constraint {
   PositionConstraint::PositionConstraint(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                                         const ocp_solver::PinocchioEndEffectorDynamics& endEffectorDynamics,
+                                         const ocp_solver::PinocchioFrameDynamics& frameDynamics,
                                          size_t numConstraints,
                                          Config config)
     : StateInputConstraint(ocs2::ConstraintOrder::Linear),
       referenceManagerPtr_(&referenceManager),
-      endEffectorDynamicsPtr_(endEffectorDynamics.clone()),
+      frameDynamicsPtr_(frameDynamics.clone()),
       numConstraints_(numConstraints),
       config_(std::move(config)) {}
 
   PositionConstraint::PositionConstraint(const PositionConstraint& rhs)
     : StateInputConstraint(rhs),
       referenceManagerPtr_(rhs.referenceManagerPtr_),
-      endEffectorDynamicsPtr_(rhs.endEffectorDynamicsPtr_->clone()),
+      frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
       numConstraints_(rhs.numConstraints_),
       config_(rhs.config_) {}
 
@@ -31,7 +31,7 @@ namespace ocp_constraint {
   }
 
   bool PositionConstraint::isActive(ocs2::scalar_t time) const {
-    return referenceManagerPtr_->isInContact(time, endEffectorDynamicsPtr_->getFrameId());
+    return referenceManagerPtr_->isInContact(time, frameDynamicsPtr_->getFrameId());
   }
 
   ocs2::vector_t PositionConstraint::getValue(ocs2::scalar_t time,
@@ -43,18 +43,18 @@ namespace ocp_constraint {
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
       for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
-        if (contact.first == endEffectorDynamicsPtr_->getFrameId()) targetPose = contact.second;
+        if (contact.first == frameDynamicsPtr_->getFrameId()) targetPose = contact.second;
       }
       Eigen::Matrix<ocs2::scalar_t, 6, 1> xError;
-      xError << endEffectorDynamicsPtr_->getPosition(ocpPreComp) - targetPose.translation(),
-        endEffectorDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetPose.rotation()));
+      xError << frameDynamicsPtr_->getPosition(ocpPreComp) - targetPose.translation(),
+        frameDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetPose.rotation()));
       f.noalias() += config_.Ax * xError;
     }
     if (config_.Av.size() > 0) {
-      f.noalias() += config_.Av * endEffectorDynamicsPtr_->getTwist(ocpPreComp);
+      f.noalias() += config_.Av * frameDynamicsPtr_->getTwist(ocpPreComp);
     }
     if (config_.Aa.size() > 0) {
-      f.noalias() += config_.Aa * endEffectorDynamicsPtr_->getAccelerations(ocpPreComp);
+      f.noalias() += config_.Aa * frameDynamicsPtr_->getAccelerations(ocpPreComp);
     }
     return f;
   }
@@ -73,11 +73,11 @@ namespace ocp_constraint {
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
       for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
-        if (contact.first == endEffectorDynamicsPtr_->getFrameId()) targetPose = contact.second;
+        if (contact.first == frameDynamicsPtr_->getFrameId()) targetPose = contact.second;
       }
-      const auto positionApprox = endEffectorDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
+      const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
       const auto orientationApprox =
-        endEffectorDynamicsPtr_->getOrientationErrorLinearApproximation(ocpPreComp, ocs2::matrixToQuaternion(targetPose.rotation()));
+        frameDynamicsPtr_->getOrientationErrorLinearApproximation(ocpPreComp, ocs2::matrixToQuaternion(targetPose.rotation()));
 
       linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
       linearApproximation.f.tail(3).noalias() += config_.Ax.bottomRightCorner(3, 3) * orientationApprox.f;
@@ -86,14 +86,14 @@ namespace ocp_constraint {
     }
 
     if (config_.Av.size() > 0) {
-      const auto velocityApprox = endEffectorDynamicsPtr_->getTwistLinearApproximation(ocpPreComp);
+      const auto velocityApprox = frameDynamicsPtr_->getTwistLinearApproximation(ocpPreComp);
       linearApproximation.f.noalias() += config_.Av * velocityApprox.f;
       linearApproximation.dfdx.noalias() += config_.Av * velocityApprox.dfdx;
       linearApproximation.dfdu.noalias() += config_.Av * velocityApprox.dfdu;
     }
 
     if (config_.Aa.size() > 0) {
-      const auto accelApprox = endEffectorDynamicsPtr_->getAccelerationsLinearApproximation(ocpPreComp);
+      const auto accelApprox = frameDynamicsPtr_->getAccelerationsLinearApproximation(ocpPreComp);
       linearApproximation.f.noalias() += config_.Aa * accelApprox.f;
       linearApproximation.dfdx.noalias() += config_.Aa * accelApprox.dfdx;
       linearApproximation.dfdu.noalias() += config_.Aa * accelApprox.dfdu;

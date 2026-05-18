@@ -2,14 +2,14 @@
 
 #include <memory>
 
-#include <ocp_solver/pinocchio_endeffector_dynamics.h>
+#include <ocp_solver/pinocchio_frame_dynamics.h>
 #include <ocs2_core/constraint/StateConstraint.h>
 
 namespace ocp_constraint {
 
   class PointConstraint final : public ocs2::StateConstraint {
   public:
-    PointConstraint(const ocp_solver::PinocchioEndEffectorDynamics& endEffectorDynamics,
+    PointConstraint(const ocp_solver::PinocchioFrameDynamics& frameDynamics,
                     const pinocchio::SE3 targetPose);
     ~PointConstraint() override = default;
     PointConstraint* clone() const override { return new PointConstraint(*this); }
@@ -21,7 +21,7 @@ namespace ocp_constraint {
   private:
     PointConstraint(const PointConstraint& rhs);
     pinocchio::SE3 targetPose_;
-    std::unique_ptr<ocp_solver::PinocchioEndEffectorDynamics> endEffectorDynamicsPtr_;
+    std::unique_ptr<ocp_solver::PinocchioFrameDynamics> frameDynamicsPtr_;
   };
 
 }

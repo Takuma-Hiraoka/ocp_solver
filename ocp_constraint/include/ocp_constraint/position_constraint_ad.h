@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
-#include <ocp_solver/pinocchio_endeffector_dynamics_cppad.h>
+#include <ocp_solver/pinocchio_frame_dynamics_cppad.h>
 #include <ocp_solver/switched_model_reference_manager.h>
 
 namespace ocp_constraint {
@@ -17,7 +17,7 @@ namespace ocp_constraint {
     };
 
     PositionConstraintAD(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                         const ocp_solver::PinocchioEndEffectorDynamicsCppAd& endEffectorDynamics,
+                         const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
                          size_t numConstraints,
                          Config config = Config());
 
@@ -27,7 +27,7 @@ namespace ocp_constraint {
     void configure(Config&& config);
     void configure(const Config& config) { this->configure(Config(config)); }
 
-    ocp_solver::PinocchioEndEffectorDynamicsCppAd& getEndEffectorDynamics() { return *endEffectorDynamicsPtr_; }
+    ocp_solver::PinocchioFrameDynamicsCppAd& getFrameDynamics() { return *frameDynamicsPtr_; }
 
     bool isActive(ocs2::scalar_t time) const override;
     size_t getNumConstraints(ocs2::scalar_t time) const override { return numConstraints_; }
@@ -43,7 +43,7 @@ namespace ocp_constraint {
   private:
     PositionConstraintAD(const PositionConstraintAD& rhs);
     const ocp_solver::SwitchedModelReferenceManager* referenceManagerPtr_;
-    std::unique_ptr<ocp_solver::PinocchioEndEffectorDynamicsCppAd> endEffectorDynamicsPtr_;
+    std::unique_ptr<ocp_solver::PinocchioFrameDynamicsCppAd> frameDynamicsPtr_;
     const size_t numConstraints_;
     Config config_;
   };
