@@ -289,8 +289,21 @@ namespace ocp_solver {
     const ocs2::scalar_t baselineConstraintViolation = ocs2::FilterLinesearch::totalConstraintViolation(baseline);
 
     // Update norm
-    const auto& dx = subproblemSolution.deltaXSol;
-    const auto& du = subproblemSolution.deltaUSol;
+    auto dx_tmp = subproblemSolution.deltaXSol;
+    auto du_tmp = subproblemSolution.deltaUSol;
+
+    // for pinocchio::integrate
+    auto deltaUnormTmp = ocs2::multiple_shooting::trajectoryNorm(du_tmp);
+    auto deltaXnormTmp = ocs2::multiple_shooting::trajectoryNorm(dx_tmp);
+    if (deltaXnormTmp > deltaClip_) {
+      for (int i=0; i<dx_tmp.size(); i++) dx_tmp[i] *= deltaClip_ / deltaXnormTmp;
+    }
+    if (deltaUnormTmp > deltaClip_) {
+      for (int i=0; i<du_tmp.size(); i++) du_tmp[i] *= deltaClip_ / deltaUnormTmp;
+    }
+
+    const auto& dx = dx_tmp;
+    const auto& du = du_tmp;
     const auto deltaUnorm = ocs2::multiple_shooting::trajectoryNorm(du);
     const auto deltaXnorm = ocs2::multiple_shooting::trajectoryNorm(dx);
 

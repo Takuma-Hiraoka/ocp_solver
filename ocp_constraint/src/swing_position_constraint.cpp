@@ -87,9 +87,9 @@ namespace ocp_constraint {
         targetPose = nearestContacts[0].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * liftRatio);
       } else if (nearestContacts[1].first != -1.0) { // down
-        double downRatio = (nearestContacts[1].first - time) / ignoreTime_;
-        targetPose = nearestContacts[0].second;
-        targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1.0 - downRatio));
+        double downRatio = (nearestContacts[1].first - time) / (nearestContacts[1].first > ignoreTime_ ? ignoreTime_ : nearestContacts[1].first);
+        targetPose = nearestContacts[1].second;
+        targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * downRatio);
       }
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
       Eigen::Matrix<ocs2::scalar_t, 3, 1> xError;
@@ -131,9 +131,9 @@ namespace ocp_constraint {
         targetPose = nearestContacts[0].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * liftRatio);
       } else if (nearestContacts[1].first != -1.0) { // down
-        double downRatio = (nearestContacts[1].first - time) / ignoreTime_;
-        targetPose = nearestContacts[0].second;
-        targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1.0 - downRatio));
+        double downRatio = (nearestContacts[1].first - time) / (nearestContacts[1].first > ignoreTime_ ? ignoreTime_ : nearestContacts[1].first);
+        targetPose = nearestContacts[1].second;
+        targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * downRatio);
       }
       const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
 

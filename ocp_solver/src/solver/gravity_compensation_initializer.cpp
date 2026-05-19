@@ -20,7 +20,9 @@ namespace ocp_solver {
 
   void GravityCompensationInitializer::compute(ocs2::scalar_t time, const ocs2::vector_t& state, ocs2::scalar_t nextTime, ocs2::vector_t& input, ocs2::vector_t& nextState) {
     input = ocs2::vector_t::Zero(stateConverterPtr_->getInputDim());
-    for (int i=0; i<stateConverterPtr_->getContactNum(); i++) input[i*6 + 2] = 100; // TODO
+    for (int i=0; i<stateConverterPtr_->getContactNum(); i++) {
+      if (referenceManagerPtr_->isInContact(time, stateConverterPtr_->getContactCandidateIds()[i])) input[i*6 + 2] = 100; // TODO
+    }
     nextState = state;
   }
 
