@@ -28,7 +28,6 @@ namespace ocp_solver {
 
     pinocchio::crba(pinInterface_.getModel(), pinInterface_.getData(), x.head(stateConverter_.getGenCoordinatesDim()));
     pinocchio::forwardKinematics(pinInterface_.getModel(), pinInterface_.getData(), x.head(stateConverter_.getGenCoordinatesDim()), x.tail(stateConverter_.getTangentDim()));
-    pinocchio::updateFramePlacements(pinInterface_.getModel(), pinInterface_.getData());
 
     pinocchio::container::aligned_vector<pinocchio::Force> fextDesired(pinInterface_.getModel().njoints, pinocchio::Force::Zero());
     auto setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {

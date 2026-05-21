@@ -215,7 +215,6 @@ namespace ocp_solver {
     pinocchio::container::aligned_vector<pinocchio::Force> fextDesired(model.njoints, pinocchio::Force::Zero());
 
     pinocchio::forwardKinematics(model, data, q, qd);
-    pinocchio::updateFramePlacements(model, data);
 
     auto setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {
                               const auto jointIndex = model.frames[frameIndex].parentJoint;

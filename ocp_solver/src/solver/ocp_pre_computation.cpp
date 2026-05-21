@@ -34,7 +34,6 @@ namespace ocp_solver {
     pinocchio::computeJointJacobians(model, data, q);
     pinocchio::computeJointJacobiansTimeVariation(model, data, q, v);
     pinocchio::forwardKinematics(model, data, q, v, a);
-    pinocchio::updateFramePlacements(model, data);
     pinocchio::crba(model, data, q);
     pinocchio::nonLinearEffects(model, data, q, v);
     pinocchio::computeForwardKinematicsDerivatives(model, data, q, v, a);

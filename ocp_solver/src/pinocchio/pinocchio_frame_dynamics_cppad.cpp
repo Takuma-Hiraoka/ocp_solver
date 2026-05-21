@@ -147,11 +147,11 @@ namespace ocp_solver {
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
 
     pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
 
     ocs2::ad_vector_t positions(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
       const size_t frameId = frameIds_[i];
+      pinocchio::updateFramePlacement(model, data, frameId);
       positions.segment<3>(3 * i) = data.oMf[frameId].translation();
     }
     return positions;
@@ -255,10 +255,10 @@ namespace ocp_solver {
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
 
     pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
 
     ocs2::ad_vector_t orientations(4 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
+      pinocchio::updateFramePlacement(model, data, frameIds_[i]);
       orientations.segment<4>(4 * i) = ocs2::matrixToQuaternion(data.oMf[frameIds_[i]].rotation()).coeffs();
     }
     return orientations;
@@ -314,11 +314,11 @@ namespace ocp_solver {
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(params.head(model.nq)), dx.head(model.nv));
 
     pinocchio::forwardKinematics(model, data, q);
-    pinocchio::updateFramePlacements(model, data);
 
     ocs2::ad_vector_t errors(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
       const size_t frameId = frameIds_[i];
+      pinocchio::updateFramePlacement(model, data, frameId);
       const auto& R = data.oMf[frameId].rotation();
 
       ad_quaternion_t eeReferenceOrientation;

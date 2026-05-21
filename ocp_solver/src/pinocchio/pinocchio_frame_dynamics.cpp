@@ -31,6 +31,9 @@ namespace ocp_solver {
 
   ocs2::vector_t PinocchioFrameDynamics::getPosition(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    pinocchio::Data& data = pinocchioInterface.getData();
+    pinocchio::updateFramePlacement(model, data, frameId_);
     return pinocchioInterface.getData().oMf[frameId_].translation();
   }
 
@@ -39,6 +42,7 @@ namespace ocp_solver {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
+    pinocchio::updateFramePlacement(model, data, frameId_);
 
     ocs2::VectorFunctionLinearApproximation position;
     position.f = data.oMf[frameId_].translation();
@@ -83,11 +87,17 @@ namespace ocp_solver {
 
   PinocchioFrameDynamics::quaternion_t PinocchioFrameDynamics::getOrientation(const OCPPreComputation& preComputation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    pinocchio::Data& data = pinocchioInterface.getData();
+    pinocchio::updateFramePlacement(model, data, frameId_);
     return ocs2::matrixToQuaternion(pinocchioInterface.getData().oMf[frameId_].rotation());
   }
 
   ocs2::vector_t PinocchioFrameDynamics::getOrientationError(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const {
     ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    pinocchio::Data& data = pinocchioInterface.getData();
+    pinocchio::updateFramePlacement(model, data, frameId_);
     return pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * pinocchioInterface.getData().oMf[frameId_].rotation());
   }
 
@@ -96,6 +106,7 @@ namespace ocp_solver {
     const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
+    pinocchio::updateFramePlacement(model, data, frameId_);
 
     ocs2::VectorFunctionLinearApproximation error;
     error.f = pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * data.oMf[frameId_].rotation());
