@@ -108,7 +108,7 @@ namespace ocp_solver {
     SystemDynamics* systemPtr = dynamic_cast<SystemDynamics*>(&system);
     ocs2::PinocchioInterface& pinocchioInterface = systemADPtr ? systemADPtr->getPinocchioInterface() : systemPtr->getPinocchioInterface();
 
-    auto continuousApproximation = system.linearApproximation(t, x, u);
+    ocs2::VectorFunctionLinearApproximation continuousApproximation = system.linearApproximation(t, x, u);
     continuousApproximation.dfdx *= dt;
     continuousApproximation.dfdx.diagonal().array() += 1.0;  // plus Identity()
     continuousApproximation.dfdu *= dt;

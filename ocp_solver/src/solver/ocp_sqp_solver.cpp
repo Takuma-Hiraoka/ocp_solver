@@ -29,12 +29,12 @@ namespace ocp_solver {
     }
 
     // Determine time discretization, taking into account event times.
-    const auto& eventTimes = this->getReferenceManager().getModeSchedule().eventTimes;
-    const auto timeDiscretization = ocs2::timeDiscretizationWithEvents(initTime, finalTime, settings_.dt, eventTimes);
+    const ocs2::scalar_array_t& eventTimes = this->getReferenceManager().getModeSchedule().eventTimes;
+    const std::vector<ocs2::AnnotatedTime> timeDiscretization = ocs2::timeDiscretizationWithEvents(initTime, finalTime, settings_.dt, eventTimes);
 
     // Initialize references
-    for (auto& ocpDefinition : ocpDefinitions_) {
-      const auto& targetTrajectories = this->getReferenceManager().getTargetTrajectories();
+    for (ocs2::OptimalControlProblem& ocpDefinition : ocpDefinitions_) {
+      const ocs2::TargetTrajectories& targetTrajectories = this->getReferenceManager().getTargetTrajectories();
       ocpDefinition.targetTrajectoriesPtr = &targetTrajectories;
     }
 
@@ -59,7 +59,7 @@ namespace ocp_solver {
       }
       // Make QP approximation
       linearQuadraticApproximationTimer_.startTimer();
-      const auto baselinePerformance = setupQuadraticSubproblem(timeDiscretization, initState, x, u, metrics);
+      const ocs2::PerformanceIndex baselinePerformance = setupQuadraticSubproblem(timeDiscretization, initState, x, u, metrics);
       linearQuadraticApproximationTimer_.endTimer();
 
       // Solve QP
@@ -71,13 +71,13 @@ namespace ocp_solver {
       delta_x0.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x[0].head(pinocchioInterface.getModel().nq), initState.head(pinocchioInterface.getModel().nq));
       delta_x0.tail(pinocchioInterface.getModel().nv) = initState.tail(pinocchioInterface.getModel().nv) - x[0].tail(pinocchioInterface.getModel().nv);
 
-      const auto deltaSolution = getOCPSolution(delta_x0);
+      const ocs2::SqpSolver::OcpSubproblemSolution deltaSolution = getOCPSolution(delta_x0);
       extractValueFunction(timeDiscretization, x);
       solveQpTimer_.endTimer();
 
       // Apply step
       linesearchTimer_.startTimer();
-      const auto stepInfo = takeStep(baselinePerformance, timeDiscretization, initState, deltaSolution, x, u, metrics);
+      const ocs2::sqp::StepInfo stepInfo = takeStep(baselinePerformance, timeDiscretization, initState, deltaSolution, x, u, metrics);
       performanceIndeces_.push_back(stepInfo.performanceAfterStep);
       linesearchTimer_.endTimer();
 
@@ -86,7 +86,7 @@ namespace ocp_solver {
 
       // Logging
       if (settings_.enableLogging) {
-        auto& logEntry = logger_.currentEntry();
+        ocs2::sqp::LogEntry& logEntry = logger_.currentEntry();
         logEntry.problemNumber = numProblems_;
         logEntry.time = initTime;
         logEntry.iteration = iter;
@@ -135,7 +135,7 @@ namespace ocp_solver {
     metrics.resize(N + 1);
 
     std::atomic_int timeIndex{0};
-    auto parallelTask = [&](int workerId) {
+    std::function<void(int)> parallelTask = [&](int workerId) {
                           // Get worker specific resources
                           ocs2::OptimalControlProblem& ocpDefinition = ocpDefinitions_[workerId];
                           ocs2::PerformanceIndex workerPerformance;  // Accumulate performance in local variable
@@ -144,7 +144,7 @@ namespace ocp_solver {
                           while (i < N) {
                             if (time[i].event == ocs2::AnnotatedTime::Event::PreEvent) {
                               // Event node
-                              auto result = setupEventNode(ocpDefinition, time[i].time, x[i], x[i + 1]);
+                              ocs2::multiple_shooting::EventTranscription result = setupEventNode(ocpDefinition, time[i].time, x[i], x[i + 1]);
                               metrics[i] = ocs2::multiple_shooting::computeMetrics(result);
                               workerPerformance += ocs2::multiple_shooting::computePerformanceIndex(result);
                               cost_[i] = std::move(result.cost);
@@ -158,7 +158,7 @@ namespace ocp_solver {
                               // Normal, intermediate node
                               const ocs2::scalar_t ti = getIntervalStart(time[i]);
                               const ocs2::scalar_t dt = getIntervalDuration(time[i], time[i + 1]);
-                              auto result = setupIntermediateNode(ocpDefinition, sensitivityDiscretizer_, ti, dt, x[i], x[i + 1], u[i]);
+                              ocs2::multiple_shooting::Transcription result = setupIntermediateNode(ocpDefinition, sensitivityDiscretizer_, ti, dt, x[i], x[i + 1], u[i]);
                               metrics[i] = ocs2::multiple_shooting::computeMetrics(result);
                               workerPerformance += ocs2::multiple_shooting::computePerformanceIndex(result, dt);
                               if (settings_.projectStateInputEqualityConstraints) {
@@ -178,7 +178,7 @@ namespace ocp_solver {
 
                           if (i == N) {  // Only one worker will execute this
                             const ocs2::scalar_t tN = getIntervalStart(time[N]);
-                            auto result = ocs2::multiple_shooting::setupTerminalNode(ocpDefinition, tN, x[N]);
+                            ocs2::multiple_shooting::TerminalTranscription result = ocs2::multiple_shooting::setupTerminalNode(ocpDefinition, tN, x[N]);
                             metrics[i] = ocs2::multiple_shooting::computeMetrics(result);
                             workerPerformance += ocs2::multiple_shooting::computePerformanceIndex(result);
                             cost_[i] = std::move(result.cost);
@@ -216,7 +216,7 @@ namespace ocp_solver {
 
     std::vector<ocs2::PerformanceIndex> performance(settings_.nThreads, ocs2::PerformanceIndex());
     std::atomic_int timeIndex{0};
-    auto parallelTask = [&](int workerId) {
+    std::function<void(int)> parallelTask = [&](int workerId) {
                           // Get worker specific resources
                           ocs2::OptimalControlProblem& ocpDefinition = ocpDefinitions_[workerId];
 
@@ -289,10 +289,10 @@ namespace ocp_solver {
     const ocs2::scalar_t baselineConstraintViolation = ocs2::FilterLinesearch::totalConstraintViolation(baseline);
 
     // Update norm
-    const auto& dx = subproblemSolution.deltaXSol;
-    const auto& du = subproblemSolution.deltaUSol;
-    const auto deltaUnorm = ocs2::multiple_shooting::trajectoryNorm(du);
-    const auto deltaXnorm = ocs2::multiple_shooting::trajectoryNorm(dx);
+    const ocs2::vector_array_t& dx = subproblemSolution.deltaXSol;
+    const ocs2::vector_array_t& du = subproblemSolution.deltaUSol;
+    const ocs2::scalar_t deltaUnorm = ocs2::multiple_shooting::trajectoryNorm(du);
+    const ocs2::scalar_t deltaXnorm = ocs2::multiple_shooting::trajectoryNorm(dx);
 
     ocs2::scalar_t alpha = 1.0;
     ocs2::vector_array_t xNew(x.size());

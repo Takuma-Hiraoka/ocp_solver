@@ -20,6 +20,6 @@ namespace ocp_solver {
   void SwitchedModelReferenceManager::modifyReferences(ocs2::scalar_t initTime, ocs2::scalar_t finalTime, const ocs2::vector_t& initState,
                                                        ocs2::TargetTrajectories& targetTrajectories, ocs2::ModeSchedule& modeSchedule) {
     contactSchedule_.updateFromBuffer();
-    const auto timeHorizon = finalTime - initTime;
+    const ocs2::scalar_t timeHorizon = finalTime - initTime;
   }
 }

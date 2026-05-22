@@ -9,7 +9,7 @@ namespace ocp_solver {
   }
 
   std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > ContactSchedule::contactAtTime(ocs2::scalar_t time) const {
-    const auto ind = ocs2::lookup::findIndexInTimeArray(eventTimes, time);
+    const size_t ind = ocs2::lookup::findIndexInTimeArray(eventTimes, time);
     return contactSequence[ind];
   }
 

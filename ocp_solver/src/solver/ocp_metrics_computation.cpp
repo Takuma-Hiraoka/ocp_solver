@@ -15,11 +15,11 @@ namespace ocp_solver {
     x_diff.tail(pinocchioInterface.getModel().nv) = x_integrated.tail(pinocchioInterface.getModel().nv) - x_next.tail(pinocchioInterface.getModel().nv);
 
     // Precomputation
-    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint;
+    constexpr ocs2::RequestSet request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint;
     optimalControlProblem.preComputationPtr->request(request, t, x, u);
 
     // Compute metrics
-    auto metrics = ocs2::computeIntermediateMetrics(optimalControlProblem, t, x, u, std::move(x_diff));
+    ocs2::Metrics metrics = ocs2::computeIntermediateMetrics(optimalControlProblem, t, x, u, std::move(x_diff));
     metrics.cost *= dt;  // consider dt
 
     return metrics;
@@ -27,7 +27,7 @@ namespace ocp_solver {
 
   ocs2::Metrics computeTerminalMetrics(ocs2::OptimalControlProblem& optimalControlProblem, ocs2::scalar_t t, const ocs2::vector_t& x) {
     // Precomputation
-    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint;
+    constexpr ocs2::RequestSet request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint;
     optimalControlProblem.preComputationPtr->requestFinal(request, t, x);
 
     return ocs2::computeFinalMetrics(optimalControlProblem, t, x);
@@ -35,7 +35,7 @@ namespace ocp_solver {
 
   ocs2::Metrics computeEventMetrics(ocs2::OptimalControlProblem& optimalControlProblem, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& x_next) {
     // Precomputation
-    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint + ocs2::Request::Dynamics;
+    constexpr ocs2::RequestSet request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint + ocs2::Request::Dynamics;
     optimalControlProblem.preComputationPtr->requestPreJump(request, t, x);
 
     // Dynamics

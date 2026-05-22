@@ -135,7 +135,7 @@ namespace ocp_constraint {
         targetPose = nearestContacts[1].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * downRatio);
       }
-      const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
+      const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
 
       linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
       linearApproximation.dfdx.topRows(3).noalias() += config_.Ax.topLeftCorner(3, 3) * positionApprox.dfdx;

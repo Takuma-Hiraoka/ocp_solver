@@ -73,8 +73,8 @@ namespace ocp_constraint {
       for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
         if (contact.first == frameDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
       }
-      const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(state).front();
-      const auto orientationApprox =
+      const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(state).front();
+      const ocs2::VectorFunctionLinearApproximation orientationApprox =
         frameDynamicsPtr_->getOrientationErrorLinearApproximation(state, {ocs2::matrixToQuaternion(targetPose.rotation())}).front();
 
       linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
@@ -84,14 +84,14 @@ namespace ocp_constraint {
     }
 
     if (config_.Av.size() > 0) {
-      const auto velocityApprox = frameDynamicsPtr_->getTwistLinearApproximation(state, input).front();
+      const ocs2::VectorFunctionLinearApproximation velocityApprox = frameDynamicsPtr_->getTwistLinearApproximation(state, input).front();
       linearApproximation.f.noalias() += config_.Av * velocityApprox.f;
       linearApproximation.dfdx.noalias() += config_.Av * velocityApprox.dfdx;
       linearApproximation.dfdu.noalias() += config_.Av * velocityApprox.dfdu;
     }
 
     if (config_.Aa.size() > 0) {
-      const auto accelApprox = frameDynamicsPtr_->getAccelerationsLinearApproximation(state, input).front();
+      const ocs2::VectorFunctionLinearApproximation accelApprox = frameDynamicsPtr_->getAccelerationsLinearApproximation(state, input).front();
       linearApproximation.f.noalias() += config_.Aa * accelApprox.f;
       linearApproximation.dfdx.noalias() += config_.Aa * accelApprox.dfdx;
       linearApproximation.dfdu.noalias() += config_.Aa * accelApprox.dfdu;

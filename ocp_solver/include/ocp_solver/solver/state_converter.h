@@ -127,7 +127,7 @@ namespace ocp_solver {
     };
 
     size_t getJointIndex(const std::string& jointName) const {
-      auto it = joint_index_map.find(jointName);
+      typename std::unordered_map<std::string, size_t>::const_iterator it = joint_index_map.find(jointName);
       if (it != joint_index_map.end()) {
         return it->second;  // Return the found index
       } else {

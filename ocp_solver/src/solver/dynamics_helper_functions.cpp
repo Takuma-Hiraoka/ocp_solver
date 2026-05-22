@@ -21,7 +21,7 @@ namespace ocp_solver {
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& nle,
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& externalForcesInJointSpace) {
-    auto M_bj = M.block(0, 6, 6, qdd_joints.size());
+    Eigen::Matrix<SCALAR_T, 6, Eigen::Dynamic> M_bj = M.block(0, 6, 6, qdd_joints.size());
     Eigen::Matrix<SCALAR_T, 6, 1> intermediate = -nle.head(6) - M_bj * qdd_joints + externalForcesInJointSpace.head(6);
     if constexpr (std::is_same_v<SCALAR_T, ocs2::ad_scalar_t>) {
     // Due to the block diagonal structure of the generalized mass matrix corresponding to the base the base mass matrix can be split into a
@@ -61,8 +61,8 @@ namespace ocp_solver {
     ocs2::PinocchioInterface& pinocchioInterface,
     const StateConverter<ocs2::scalar_t>& stateConverter,
     pinocchio::ReferenceFrame referenceFrame) {
-    const auto& model = pinocchioInterface.getModel();
-    auto& data = pinocchioInterface.getData();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    pinocchio::Data& data = pinocchioInterface.getData();
     const size_t tangentDim = stateConverter.getTangentDim();
     const size_t baseVDim = stateConverter.getBaseVDim();
     const size_t jointDim = stateConverter.getJointDim();
@@ -95,7 +95,7 @@ namespace ocp_solver {
     }
 
     const ocs2::matrix_t M_bb = M.topLeftCorner(baseVDim, baseVDim);
-    const auto MbbSolver = M_bb.ldlt();
+    const Eigen::LDLT<ocs2::matrix_t> MbbSolver = M_bb.ldlt();
     const ocs2::matrix_t baseResidualDerivativeQ = dtau_dq.topRows(baseVDim) - externalForcesDerivative.topRows(baseVDim);
     approximation.dfdq = -MbbSolver.solve(baseResidualDerivativeQ);
     approximation.dfdv = -MbbSolver.solve(dtau_dv.topRows(baseVDim));
@@ -117,8 +117,8 @@ namespace ocp_solver {
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& input,
                                                         const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                         StateConverter<SCALAR_T>& stateConverter) {
-    const auto& model = pinInterface.getModel();
-    auto data = pinInterface.getData();
+    const pinocchio::ModelTpl<SCALAR_T>& model = pinInterface.getModel();
+    pinocchio::DataTpl<SCALAR_T> data = pinInterface.getData();
     const Eigen::Matrix<SCALAR_T, -1, 1> q = stateConverter.getGeneralizedCoordinates(state);
     const Eigen::Matrix<SCALAR_T, -1, 1> qd = stateConverter.getGeneralizedVelocities(state, input);
     const Eigen::Matrix<SCALAR_T, -1, 1> qdd_joints = stateConverter.getJointAccelerations(input);
@@ -226,7 +226,7 @@ namespace ocp_solver {
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
                                                      const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                      ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
-    const auto& model = pinocchioInterface.getModel();
+    const pinocchio::ModelTpl<SCALAR_T>& model = pinocchioInterface.getModel();
     pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
 
     pinocchio::crba(model, data, q);
@@ -270,15 +270,15 @@ namespace ocp_solver {
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
                                                          const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
                                                          ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
-    const auto& model = pinocchioInterface.getModel();
-    auto& data = pinocchioInterface.getData();
+    const pinocchio::ModelTpl<SCALAR_T>& model = pinocchioInterface.getModel();
+    pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
 
     pinocchio::container::aligned_vector<pinocchio::Force> fextDesired(model.njoints, pinocchio::Force::Zero());
 
     pinocchio::forwardKinematics(model, data, q, qd);
 
-    auto setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {
-                              const auto jointIndex = model.frames[frameIndex].parentJoint;
+    std::function<void(const pinocchio::FrameIndex&, size_t)> setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {
+                              const pinocchio::JointIndex jointIndex = model.frames[frameIndex].parentJoint;
                               const Eigen::Matrix<SCALAR_T, 3, 1> translationJointFrameToContactFrame = model.frames[frameIndex].placement.translation();
                               const Eigen::Matrix<SCALAR_T, 3, 3> rotationWorldFrameToJointFrame = data.oMi[jointIndex].rotation().transpose();
                               const Eigen::Matrix<SCALAR_T, 3, 1> contactForce = rotationWorldFrameToJointFrame * wrenches[i].first.head(3);

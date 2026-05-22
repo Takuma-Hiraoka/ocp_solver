@@ -30,8 +30,8 @@ namespace ocp_constraint {
 
     ocs2::VectorFunctionLinearApproximation approximation = ocs2::VectorFunctionLinearApproximation(6, 2*ocpPreComp.getPinocchioInterface().getModel().nv, 0);
 
-    const auto positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
-    const auto orientationApprox =
+    const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
+    const ocs2::VectorFunctionLinearApproximation orientationApprox =
       frameDynamicsPtr_->getOrientationErrorLinearApproximation(ocpPreComp, ocs2::matrixToQuaternion(targetPose_.rotation()));
 
     approximation.f.head(3).noalias() += positionApprox.f - targetPose_.translation();

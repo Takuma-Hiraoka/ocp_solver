@@ -11,13 +11,13 @@ namespace ocp_solver {
                                                                ocs2::scalar_t t, ocs2::scalar_t dt, const ocs2::vector_t& x, const ocs2::vector_t& x_next, const ocs2::vector_t& u) {
     // Results and short-hand notation
     ocs2::multiple_shooting::Transcription transcription;
-    auto& cost = transcription.cost;
-    auto& dynamics = transcription.dynamics;
-    auto& constraintsSize = transcription.constraintsSize;
-    auto& stateEqConstraints = transcription.stateEqConstraints;
-    auto& stateInputEqConstraints = transcription.stateInputEqConstraints;
-    auto& stateIneqConstraints = transcription.stateIneqConstraints;
-    auto& stateInputIneqConstraints = transcription.stateInputIneqConstraints;
+    ocs2::ScalarFunctionQuadraticApproximation& cost = transcription.cost;
+    ocs2::VectorFunctionLinearApproximation& dynamics = transcription.dynamics;
+    ocs2::multiple_shooting::ConstraintsSize& constraintsSize = transcription.constraintsSize;
+    ocs2::VectorFunctionLinearApproximation& stateEqConstraints = transcription.stateEqConstraints;
+    ocs2::VectorFunctionLinearApproximation& stateInputEqConstraints = transcription.stateInputEqConstraints;
+    ocs2::VectorFunctionLinearApproximation& stateIneqConstraints = transcription.stateIneqConstraints;
+    ocs2::VectorFunctionLinearApproximation& stateInputIneqConstraints = transcription.stateInputIneqConstraints;
 
     // Dynamics
     // Discretization returns x_{k+1} = A_{k} * dx_{k} + B_{k} * du_{k} + b_{k}
@@ -31,7 +31,7 @@ namespace ocp_solver {
     dynamics.f = x_diff;
 
     // Precomputation for other terms
-    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint + ocs2::Request::Approximation;
+    constexpr ocs2::RequestSet request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint + ocs2::Request::Approximation;
     optimalControlProblem.preComputationPtr->request(request, t, x, u);
 
     // Costs: Approximate the integral with forward euler
@@ -73,11 +73,11 @@ namespace ocp_solver {
   ocs2::multiple_shooting::EventTranscription setupEventNode(ocs2::OptimalControlProblem& optimalControlProblem, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& x_next) {
     // Results and short-hand notation
     ocs2::multiple_shooting::EventTranscription transcription;
-    auto& cost = transcription.cost;
-    auto& dynamics = transcription.dynamics;
-    auto& constraintsSize = transcription.constraintsSize;
-    auto& eqConstraints = transcription.eqConstraints;
-    auto& ineqConstraints = transcription.ineqConstraints;
+    ocs2::ScalarFunctionQuadraticApproximation& cost = transcription.cost;
+    ocs2::VectorFunctionLinearApproximation& dynamics = transcription.dynamics;
+    ocs2::multiple_shooting::ConstraintsSize& constraintsSize = transcription.constraintsSize;
+    ocs2::VectorFunctionLinearApproximation& eqConstraints = transcription.eqConstraints;
+    ocs2::VectorFunctionLinearApproximation& ineqConstraints = transcription.ineqConstraints;
 
     // Dynamics
     // jump map returns // x_{k+1} = A_{k} * dx_{k} + b_{k}
@@ -92,7 +92,7 @@ namespace ocp_solver {
 
     dynamics.dfdu.setZero(x.size(), 0);  // Overwrite derivative that shouldn't exist.
 
-    constexpr auto request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Dynamics + ocs2::Request::Approximation;
+    constexpr ocs2::RequestSet request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Dynamics + ocs2::Request::Approximation;
     optimalControlProblem.preComputationPtr->requestPreJump(request, t, x);
 
     // Costs

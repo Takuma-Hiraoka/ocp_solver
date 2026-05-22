@@ -79,7 +79,7 @@ namespace ocp_constraint {
       ocs2::matrix_t dqdd_dx = ocs2::matrix_t::Zero(tangentDim, stateConverter.getStateVariableDim());
       ocs2::matrix_t dqdd_du = ocs2::matrix_t::Zero(tangentDim, inputDim);
       if (baseVDim > 0) {
-        const auto& baseAccelerationApprox = preComp.getBaseAccelerationLinearApproximation();
+        const ocp_solver::BaseAccelerationLinearApproximation& baseAccelerationApprox = preComp.getBaseAccelerationLinearApproximation();
         dqdd_dx.block(0, 0, baseVDim, tangentDim) = baseAccelerationApprox.dfdq;
         dqdd_dx.block(0, tangentDim, baseVDim, tangentDim) = baseAccelerationApprox.dfdv;
         dqdd_du.topRows(baseVDim) = baseAccelerationApprox.dfdu;
@@ -134,7 +134,9 @@ namespace ocp_constraint {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
     const ocs2::vector_t torques = getJointTorques(state, input, pinocchioInterface, *stateConverter_);
-    const auto [dtaudx, dtaudu] = torqueDerivatives(state, input, ocpPreComp, pinocchioInterface, *stateConverter_);
+    const std::pair<ocs2::matrix_t, ocs2::matrix_t> torqueDerivativePair = torqueDerivatives(state, input, ocpPreComp, pinocchioInterface, *stateConverter_);
+    const ocs2::matrix_t& dtaudx = torqueDerivativePair.first;
+    const ocs2::matrix_t& dtaudu = torqueDerivativePair.second;
 
     torque.f = 0.5 * torques.dot(weights_ * torques);
     torque.dfdx = dtaudx.transpose() * weights_ * torques;

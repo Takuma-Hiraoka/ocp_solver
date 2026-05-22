@@ -11,7 +11,7 @@ namespace ocp_solver {
   ocs2::ScalarFunctionQuadraticApproximation StateCostCollection::getQuadraticApproximation(ocs2::scalar_t time, const ocs2::vector_t& state,
                                                                                             const ocs2::TargetTrajectories& targetTrajectories,
                                                                                             const ocs2::PreComputation& preComp) const {
-    const auto firstActive =
+    std::vector<std::unique_ptr<ocs2::StateCost>>::const_iterator firstActive =
       std::find_if(terms_.begin(), terms_.end(), [time](const std::unique_ptr<ocs2::StateCost>& costTerm) { return costTerm->isActive(time); });
 
     // No active terms (or terms is empty).
@@ -20,10 +20,10 @@ namespace ocp_solver {
     }
 
     // Initialize with first active term, accumulate potentially other active terms.
-    auto cost = (*firstActive)->getQuadraticApproximation(time, state, targetTrajectories, preComp);
+    ocs2::ScalarFunctionQuadraticApproximation cost = (*firstActive)->getQuadraticApproximation(time, state, targetTrajectories, preComp);
     std::for_each(std::next(firstActive), terms_.end(), [&](const std::unique_ptr<ocs2::StateCost>& costTerm) {
                                                           if (costTerm->isActive(time)) {
-                                                            const auto costTermApproximation = costTerm->getQuadraticApproximation(time, state, targetTrajectories, preComp);
+                                                            const ocs2::ScalarFunctionQuadraticApproximation costTermApproximation = costTerm->getQuadraticApproximation(time, state, targetTrajectories, preComp);
                                                             cost.f += costTermApproximation.f;
                                                             cost.dfdx += costTermApproximation.dfdx;
                                                             cost.dfdxx += costTermApproximation.dfdxx;

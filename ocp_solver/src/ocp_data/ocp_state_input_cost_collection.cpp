@@ -14,7 +14,7 @@ namespace ocp_solver {
                                                                                                  const ocs2::vector_t& input,
                                                                                                  const ocs2::TargetTrajectories& targetTrajectories,
                                                                                                  const ocs2::PreComputation& preComp) const {
-    const auto firstActive = std::find_if(terms_.begin(), terms_.end(),
+    std::vector<std::unique_ptr<ocs2::StateInputCost>>::const_iterator firstActive = std::find_if(terms_.begin(), terms_.end(),
                                           [time](const std::unique_ptr<ocs2::StateInputCost>& costTerm) { return costTerm->isActive(time); });
 
     // No active terms (or terms is empty).
@@ -23,7 +23,7 @@ namespace ocp_solver {
     }
 
     // Initialize with first active term, accumulate potentially other active terms.
-    auto cost = (*firstActive)->getQuadraticApproximation(time, state, input, targetTrajectories, preComp);
+    ocs2::ScalarFunctionQuadraticApproximation cost = (*firstActive)->getQuadraticApproximation(time, state, input, targetTrajectories, preComp);
     std::for_each(std::next(firstActive), terms_.end(), [&](const std::unique_ptr<ocs2::StateInputCost>& costTerm) {
                                                           if (costTerm->isActive(time)) {
                                                             cost += costTerm->getQuadraticApproximation(time, state, input, targetTrajectories, preComp);

@@ -38,7 +38,7 @@ namespace ocp_solver {
       qdd.head(6) = approximation.f.segment(tangentDim, 6);
       qdd.tail(jointDim) = qddJoints;
 
-      const auto* ocpPreComputation = dynamic_cast<const OCPPreComputation*>(&preComputation);
+      const OCPPreComputation* ocpPreComputation = dynamic_cast<const OCPPreComputation*>(&preComputation);
       const BaseAccelerationLinearApproximation baseAccelerationApprox =
         (ocpPreComputation != nullptr)
           ? ocpPreComputation->getBaseAccelerationLinearApproximation()

@@ -46,7 +46,7 @@ namespace ocp_constraint {
                                                     const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
-    const auto frameId = stateConverterPtr_->getContactCandidateIds()[contactIndex_];
+    const pinocchio::FrameIndex frameId = stateConverterPtr_->getContactCandidateIds()[contactIndex_];
     pinocchio::updateFramePlacement(pinocchioInterface.getModel(), pinocchioInterface.getData(), frameId);
     Eigen::Matrix3d R_frame = pinocchioInterface.getData().oMf[frameId].rotation();
     Eigen::Matrix<ocs2::scalar_t, 6, 6> R = Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();
@@ -62,13 +62,13 @@ namespace ocp_constraint {
                                                                                            const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
-    const auto frameId = stateConverterPtr_->getContactCandidateIds()[contactIndex_];
+    const pinocchio::FrameIndex frameId = stateConverterPtr_->getContactCandidateIds()[contactIndex_];
     pinocchio::updateFramePlacement(pinocchioInterface.getModel(), pinocchioInterface.getData(), frameId);
     Eigen::Matrix3d R_frame = pinocchioInterface.getData().oMf[frameId].rotation();
     Eigen::Matrix<ocs2::scalar_t, 6, 6> R = Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();
     R.block(0,0,3,3) = R_frame.transpose();
     R.block(3,3,3,3) = R_frame.transpose();
-    const auto wrench = stateConverterPtr_->getContactWrench(input, contactIndex_);
+    const Eigen::Matrix<ocs2::scalar_t, 6, 1> wrench = stateConverterPtr_->getContactWrench(input, contactIndex_);
 
     ocs2::VectorFunctionLinearApproximation approx;
     approx.f = coef_ * R * wrench;

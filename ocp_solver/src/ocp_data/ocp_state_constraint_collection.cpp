@@ -15,9 +15,9 @@ namespace ocp_solver {
 
     // append linearApproximation of each constraintTerm
     size_t i = 0;
-    for (const auto& constraintTerm : this->terms_) {
+    for (const std::unique_ptr<ocs2::StateConstraint>& constraintTerm : this->terms_) {
       if (constraintTerm->isActive(time)) {
-        const auto constraintTermApproximation = constraintTerm->getLinearApproximation(time, state, preComp);
+        const ocs2::VectorFunctionLinearApproximation constraintTermApproximation = constraintTerm->getLinearApproximation(time, state, preComp);
         const size_t nc = constraintTermApproximation.f.rows();
         linearApproximation.f.segment(i, nc) = constraintTermApproximation.f;
         linearApproximation.dfdx.middleRows(i, nc) = constraintTermApproximation.dfdx;
@@ -33,7 +33,7 @@ namespace ocp_solver {
   /******************************************************************************************************/
   ocs2::VectorFunctionQuadraticApproximation StateConstraintCollection::getQuadraticApproximation(ocs2::scalar_t time, const ocs2::vector_t& state,
                                                                                                   const ocs2::PreComputation& preComp) const {
-    const auto numConstraints = getNumConstraints(time);
+    const size_t numConstraints = getNumConstraints(time);
 
     ocs2::VectorFunctionQuadraticApproximation quadraticApproximation;
     quadraticApproximation.f.resize(numConstraints);
@@ -42,9 +42,9 @@ namespace ocp_solver {
 
     // append quadraticApproximation of each constraintTerm
     size_t i = 0;
-    for (const auto& constraintTerm : this->terms_) {
+    for (const std::unique_ptr<ocs2::StateConstraint>& constraintTerm : this->terms_) {
       if (constraintTerm->isActive(time)) {
-        auto constraintTermApproximation = constraintTerm->getQuadraticApproximation(time, state, preComp);
+        ocs2::VectorFunctionQuadraticApproximation constraintTermApproximation = constraintTerm->getQuadraticApproximation(time, state, preComp);
         const size_t nc = constraintTermApproximation.f.rows();
         quadraticApproximation.f.segment(i, nc) = constraintTermApproximation.f;
         quadraticApproximation.dfdx.middleRows(i, nc) = constraintTermApproximation.dfdx;

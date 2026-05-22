@@ -148,7 +148,7 @@ namespace ocp_solver {
     ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
     pinocchio::getFrameVelocityDerivatives(model, data, frameId_, rf, v_partial_dq, v_partial_dv);
-    const auto frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
+    const pinocchio::Motion frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     // For reference frame LOCAL_WORLD_ALIGNED the jacobian needs to be corrected.
     if (rf == pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED) {
       v_partial_dq.topRows<3>() += ocs2::skewSymmetricMatrix(vector3_t(frameVel.angular())) * v_partial_dv.topRows<3>();
@@ -213,7 +213,7 @@ namespace ocp_solver {
     ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
     pinocchio::getFrameVelocityDerivatives(model, data, frameId_, rf, v_partial_dq, v_partial_dv);
-    const auto frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
+    const pinocchio::Motion frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     ocs2::VectorFunctionLinearApproximation vel;
     vel.f = frameVel.angular();
     vel.dfdx.setZero(3, stateConverter_->getStateVariableDim());
@@ -242,7 +242,7 @@ namespace ocp_solver {
     ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
     pinocchio::getFrameVelocityDerivatives(model, data, frameId_, rf, v_partial_dq, v_partial_dv);
-    const auto frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
+    const pinocchio::Motion frameVel = pinocchio::getFrameVelocity(model, data, frameId_, rf);
     // For reference frame LOCAL_WORLD_ALIGNED the jacobian needs to be corrected.
     if (rf == pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED) {
       v_partial_dq.topRows<3>() += ocs2::skewSymmetricMatrix(vector3_t(frameVel.angular())) * v_partial_dv.topRows<3>();
