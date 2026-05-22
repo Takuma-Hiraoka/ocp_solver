@@ -9,9 +9,84 @@
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/frames-derivatives.hpp>
+#include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/rnea-derivatives.hpp>
 
 namespace ocp_solver {
+
+  namespace {
+    struct FrameClassicalAccelerationDerivatives {
+      ocs2::matrix_t dfdq;
+      ocs2::matrix_t dfdv;
+      ocs2::matrix_t dfda;
+    };
+
+    FrameClassicalAccelerationDerivatives computeFrameClassicalAccelerationDerivatives(
+      const pinocchio::Model& model,
+      pinocchio::Data& data,
+      pinocchio::FrameIndex frameId,
+      pinocchio::ReferenceFrame referenceFrame) {
+      ocs2::matrix_t v_partial_dq(6, model.nv);
+      ocs2::matrix_t spatial_dq(6, model.nv);
+      ocs2::matrix_t spatial_dv(6, model.nv);
+      ocs2::matrix_t spatial_da(6, model.nv);
+      pinocchio::getFrameAccelerationDerivatives(model, data, frameId, referenceFrame,
+                                                 v_partial_dq, spatial_dq, spatial_dv, spatial_da);
+
+      FrameClassicalAccelerationDerivatives derivatives{spatial_dq, spatial_dv, spatial_da};
+      if (!derivatives.dfda.allFinite()) {
+        derivatives.dfda = derivatives.dfda.unaryExpr([](double x) {
+          return std::isfinite(x) ? x : 0.0;
+        });
+      }
+
+      const pinocchio::Motion frameVelocity = pinocchio::getFrameVelocity(model, data, frameId, referenceFrame);
+      const Eigen::Vector3d omega = frameVelocity.angular();
+      const Eigen::Vector3d linearVelocity = frameVelocity.linear();
+      const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
+      const ocs2::matrix_t S_linearVelocity = ocs2::skewSymmetricMatrix(linearVelocity);
+
+      for (int k = 0; k < model.nv; ++k) {
+        derivatives.dfdq.block<3,1>(0, k) +=
+          -S_linearVelocity * spatial_dq.block<3,1>(3, k) + S_omega * spatial_dq.block<3,1>(0, k);
+        derivatives.dfdv.block<3,1>(0, k) +=
+          -S_linearVelocity * spatial_dv.block<3,1>(3, k) + S_omega * spatial_dv.block<3,1>(0, k);
+      }
+
+      return derivatives;
+    }
+
+    void addBaseAccelerationChainRule(const OCPPreComputation& preComputation,
+                                      const StateConverter<ocs2::scalar_t>& stateConverter,
+                                      const ocs2::matrix_t& frameAccelerationPartialDa,
+                                      size_t rowOffset,
+                                      size_t rowCount,
+                                      pinocchio::ReferenceFrame referenceFrame,
+                                      ocs2::VectorFunctionLinearApproximation& acceleration) {
+      const size_t baseVDim = stateConverter.getBaseVDim();
+      if (baseVDim == 0) {
+        return;
+      }
+
+      ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+      const BaseAccelerationLinearApproximation baseAccelerationApprox =
+        computeBaseAccelerationLinearApproximation(preComputation.getGeneralizedCoordinates(),
+                                                   preComputation.getGeneralizedVelocities(),
+                                                   preComputation.getGeneralizedAccelerations(),
+                                                   preComputation.getInput(),
+                                                   pinocchioInterface,
+                                                   stateConverter,
+                                                   referenceFrame);
+      const ocs2::matrix_t framePartialBaseAcceleration =
+        frameAccelerationPartialDa.block(rowOffset, 0, rowCount, baseVDim);
+      acceleration.dfdx.leftCols(stateConverter.getTangentDim()).noalias() +=
+        framePartialBaseAcceleration * baseAccelerationApprox.dfdq;
+      acceleration.dfdx.rightCols(stateConverter.getTangentDim()).noalias() +=
+        framePartialBaseAcceleration * baseAccelerationApprox.dfdv;
+      acceleration.dfdu.noalias() += framePartialBaseAcceleration * baseAccelerationApprox.dfdu;
+    }
+  }
 
   PinocchioFrameDynamics::PinocchioFrameDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
                                                  StateConverter<ocs2::scalar_t>& stateConverter,
@@ -199,54 +274,16 @@ namespace ocp_solver {
     ocs2::VectorFunctionLinearApproximation acceleration;
     acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).linear();
 
-    ocs2::matrix_t v_partial_dq(6, model.nv);
-    ocs2::matrix_t spatial_dq(6, model.nv);
-    ocs2::matrix_t spatial_dv(6, model.nv);
-    ocs2::matrix_t spatial_da(6, model.nv);
-    pinocchio::getFrameAccelerationDerivatives(model, data, frameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
-
-    ocs2::matrix_t a_partial_dq = spatial_dq;
-    ocs2::matrix_t a_partial_dv = spatial_dv;
-    ocs2::matrix_t a_partial_da = spatial_da;
-
-    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, frameId_, rf);
-    const vector3_t omega = v_frame.angular();
-    const vector3_t vlin  = v_frame.linear();
-    const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
-    const ocs2::matrix_t S_vlin = ocs2::skewSymmetricMatrix(vlin);
-
-    for (int k = 0; k < model.nv; ++k) {
-      // wrt q
-      const vector3_t dvlin_dq  = spatial_dq.block<3,1>(0, k);
-      const vector3_t domega_dq = spatial_dq.block<3,1>(3, k);
-
-      a_partial_dq.block<3,1>(0, k) +=
-        -S_vlin * domega_dq + S_omega * dvlin_dq;
-
-      // wrt v
-      const vector3_t dvlin_dv  = spatial_dv.block<3,1>(0, k);
-      const vector3_t domega_dv = spatial_dv.block<3,1>(3, k);
-
-      a_partial_dv.block<3,1>(0, k) +=
-        -S_vlin * domega_dv + S_omega * dvlin_dv;
-
-      // wrt a:
-      // no correction because omega and vlin do not depend on a.
-    }
+    const FrameClassicalAccelerationDerivatives derivatives =
+      computeFrameClassicalAccelerationDerivatives(model, data, frameId_, rf);
 
     acceleration.dfdx.setZero(3, stateConverter_->getStateVariableDim());
-    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = a_partial_dq.topRows(3);
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = a_partial_dv.topRows(3);
+    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = derivatives.dfdq.topRows(3);
+    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = derivatives.dfdv.topRows(3);
 
     acceleration.dfdu.setZero(3, stateConverter_->getInputDim());
-    if (stateConverter_->getBaseVDim() > 0) {
-      for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
-        ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
-        pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-        acceleration.dfdu.block(0,i*6, 3, 6) = (data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose()).topRows(3);
-      }
-    }
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = (a_partial_da.rightCols(stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim())).topRows(3);
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = derivatives.dfda.rightCols(stateConverter_->getJointDim()).topRows(3);
+    addBaseAccelerationChainRule(preComputation, *stateConverter_, derivatives.dfda, 0, 3, rf, acceleration);
     return acceleration;
   }
 
@@ -267,59 +304,16 @@ namespace ocp_solver {
     ocs2::VectorFunctionLinearApproximation acceleration;
     acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).angular();
 
-    ocs2::matrix_t v_partial_dq(6, model.nv);
-    ocs2::matrix_t spatial_dq(6, model.nv);
-    ocs2::matrix_t spatial_dv(6, model.nv);
-    ocs2::matrix_t spatial_da(6, model.nv);
-    pinocchio::getFrameAccelerationDerivatives(model, data, frameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
-
-    ocs2::matrix_t a_partial_dq = spatial_dq;
-    ocs2::matrix_t a_partial_dv = spatial_dv;
-    ocs2::matrix_t a_partial_da = spatial_da;
-    if (!a_partial_da.allFinite()) {
-      a_partial_da = a_partial_da.unaryExpr([](double x) {
-                                              return std::isfinite(x) ? x : 0.0;
-                                            });
-    }
-
-    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, frameId_, rf);
-    const vector3_t omega = v_frame.angular();
-    const vector3_t vlin  = v_frame.linear();
-    const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
-    const ocs2::matrix_t S_vlin = ocs2::skewSymmetricMatrix(vlin);
-
-    for (int k = 0; k < model.nv; ++k) {
-      // wrt q
-      const vector3_t dvlin_dq  = spatial_dq.block<3,1>(0, k);
-      const vector3_t domega_dq = spatial_dq.block<3,1>(3, k);
-
-      a_partial_dq.block<3,1>(0, k) +=
-        -S_vlin * domega_dq + S_omega * dvlin_dq;
-
-      // wrt v
-      const vector3_t dvlin_dv  = spatial_dv.block<3,1>(0, k);
-      const vector3_t domega_dv = spatial_dv.block<3,1>(3, k);
-
-      a_partial_dv.block<3,1>(0, k) +=
-        -S_vlin * domega_dv + S_omega * dvlin_dv;
-
-      // wrt a:
-      // no correction because omega and vlin do not depend on a.
-    }
+    const FrameClassicalAccelerationDerivatives derivatives =
+      computeFrameClassicalAccelerationDerivatives(model, data, frameId_, rf);
 
     acceleration.dfdx.setZero(3, stateConverter_->getStateVariableDim());
-    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = a_partial_dq.bottomRows(3);
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = a_partial_dv.bottomRows(3);
+    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = derivatives.dfdq.bottomRows(3);
+    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = derivatives.dfdv.bottomRows(3);
 
     acceleration.dfdu.setZero(3, stateConverter_->getInputDim());
-    if (stateConverter_->getBaseVDim() > 0) {
-      for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
-        ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
-        pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-        acceleration.dfdu.block(0,i*6, 3, 6) = (data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose()).bottomRows(3);
-      }
-    }
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = (a_partial_da.rightCols(stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim())).bottomRows(3);
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = derivatives.dfda.rightCols(stateConverter_->getJointDim()).bottomRows(3);
+    addBaseAccelerationChainRule(preComputation, *stateConverter_, derivatives.dfda, 3, 3, rf, acceleration);
     return acceleration;
   }
 
@@ -347,60 +341,15 @@ namespace ocp_solver {
     acceleration_f.tail(3) = pinocchio::getFrameClassicalAcceleration(model, data, frameId_, rf).angular();
     acceleration.f = acceleration_f;
 
-    ocs2::matrix_t v_partial_dq(6, model.nv);
-    ocs2::matrix_t spatial_dq(6, model.nv);
-    ocs2::matrix_t spatial_dv(6, model.nv);
-    ocs2::matrix_t spatial_da(6, model.nv);
-    pinocchio::getFrameAccelerationDerivatives(model, data, frameId_, rf, v_partial_dq, spatial_dq, spatial_dv, spatial_da);
-
-    ocs2::matrix_t a_partial_dq = spatial_dq;
-    ocs2::matrix_t a_partial_dv = spatial_dv;
-    ocs2::matrix_t a_partial_da = spatial_da;
-    if (!a_partial_da.allFinite()) {
-      a_partial_da = a_partial_da.unaryExpr([](double x) {
-                                              return std::isfinite(x) ? x : 0.0;
-                                            });
-    }
-
-    const pinocchio::Motion v_frame = pinocchio::getFrameVelocity(model, data, frameId_, rf);
-    const vector3_t omega = v_frame.angular();
-    const vector3_t vlin  = v_frame.linear();
-    const ocs2::matrix_t S_omega = ocs2::skewSymmetricMatrix(omega);
-    const ocs2::matrix_t S_vlin = ocs2::skewSymmetricMatrix(vlin);
-
-    for (int k = 0; k < model.nv; ++k) {
-      // wrt q
-      const vector3_t dvlin_dq  = spatial_dq.block<3,1>(0, k);
-      const vector3_t domega_dq = spatial_dq.block<3,1>(3, k);
-
-      a_partial_dq.block<3,1>(0, k) +=
-        -S_vlin * domega_dq + S_omega * dvlin_dq;
-
-      // wrt v
-      const vector3_t dvlin_dv  = spatial_dv.block<3,1>(0, k);
-      const vector3_t domega_dv = spatial_dv.block<3,1>(3, k);
-
-      a_partial_dv.block<3,1>(0, k) +=
-        -S_vlin * domega_dv + S_omega * dvlin_dv;
-
-      // wrt a:
-      // no correction because omega and vlin do not depend on a.
-    }
+    const FrameClassicalAccelerationDerivatives derivatives =
+      computeFrameClassicalAccelerationDerivatives(model, data, frameId_, rf);
 
     acceleration.dfdx.setZero(6, stateConverter_->getStateVariableDim());
-    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = a_partial_dq;
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = a_partial_dv;
-
+    acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = derivatives.dfdq;
+    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = derivatives.dfdv;
     acceleration.dfdu.setZero(6, stateConverter_->getInputDim());
-    if (stateConverter_->getBaseVDim() > 0) {
-      for (int i=0; i<stateConverter_->contactCandidateIds.size(); i++) {
-        ocs2::matrix_t J = ocs2::matrix_t::Zero(6, stateConverter_->getTangentDim());
-        pinocchio::getFrameJacobian(model, data, stateConverter_->contactCandidateIds[i], rf, J);
-        acceleration.dfdu.block(0,i*6, 6, 6) = a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * J.block(0,0,6,6).transpose();
-      }
-    }
-
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = a_partial_da.rightCols(stateConverter_->getJointDim()) + a_partial_da.leftCols(stateConverter_->getBaseVDim()) * data.M.topLeftCorner(6,6).inverse() * data.M.block(0, 6, 6, stateConverter_->getJointDim());
+    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = derivatives.dfda.rightCols(stateConverter_->getJointDim());
+    addBaseAccelerationChainRule(preComputation, *stateConverter_, derivatives.dfda, 0, 6, rf, acceleration);
 
     return acceleration;
   }

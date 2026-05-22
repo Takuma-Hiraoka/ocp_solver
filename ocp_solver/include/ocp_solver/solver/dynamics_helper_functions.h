@@ -16,11 +16,26 @@
 
 namespace ocp_solver {
 
+  struct BaseAccelerationLinearApproximation {
+    ocs2::matrix_t dfdq;
+    ocs2::matrix_t dfdv;
+    ocs2::matrix_t dfdu;
+  };
+
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, 6, 1> computeBaseAcceleration(const Eigen::Matrix<SCALAR_T, -1, 1>& state,
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& input,
                                                         const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                         StateConverter<SCALAR_T>& stateConverter);
+
+  BaseAccelerationLinearApproximation computeBaseAccelerationLinearApproximation(
+    const ocs2::vector_t& q,
+    const ocs2::vector_t& v,
+    const ocs2::vector_t& generalizedAccelerations,
+    const ocs2::vector_t& input,
+    ocs2::PinocchioInterface& pinocchioInterface,
+    const StateConverter<ocs2::scalar_t>& stateConverter,
+    pinocchio::ReferenceFrame referenceFrame = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeGeneralizedAccelerations(const Eigen::Matrix<SCALAR_T, -1, 1>& state,

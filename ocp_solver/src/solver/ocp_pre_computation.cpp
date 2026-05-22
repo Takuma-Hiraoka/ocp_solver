@@ -21,7 +21,11 @@ namespace ocp_solver {
 
   OCPPreComputation::OCPPreComputation(const OCPPreComputation& rhs)
     : pinocchioInterface_(rhs.pinocchioInterface_),
-      stateConverterPtr_(rhs.stateConverterPtr_) {}
+      stateConverterPtr_(rhs.stateConverterPtr_),
+      q_(rhs.q_),
+      v_(rhs.v_),
+      a_(rhs.a_),
+      input_(rhs.input_) {}
 
   OCPPreComputation* OCPPreComputation::clone() const {
     return new OCPPreComputation(*this);
@@ -45,8 +49,11 @@ namespace ocp_solver {
     }
 
     StateConverter<ocs2::scalar_t>& sc = const_cast<StateConverter<ocs2::scalar_t>&>(*stateConverterPtr_);
-    ocs2::vector_t a = computeGeneralizedAccelerations(x, u, pinocchioInterface_, sc);
-    updatePinocchioModelKinematics(stateConverterPtr_->getGeneralizedCoordinates(x), stateConverterPtr_->getGeneralizedVelocities(x, u), a);
+    q_ = stateConverterPtr_->getGeneralizedCoordinates(x);
+    v_ = stateConverterPtr_->getGeneralizedVelocities(x, u);
+    a_ = computeGeneralizedAccelerations(x, u, pinocchioInterface_, sc);
+    input_ = u;
+    updatePinocchioModelKinematics(q_, v_, a_);
 
   }
 

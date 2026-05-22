@@ -8,7 +8,9 @@
 #include <pinocchio/algorithm/contact-dynamics.hpp>
 #include <pinocchio/algorithm/crba.hpp>
 #include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
+#include <pinocchio/algorithm/rnea-derivatives.hpp>
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/multibody/model.hpp>
 
@@ -50,6 +52,65 @@ namespace ocp_solver {
                                                                           const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& nle,
                                                                           const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
                                                                           const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& externalForcesInJointSpace);
+
+  BaseAccelerationLinearApproximation computeBaseAccelerationLinearApproximation(
+    const ocs2::vector_t& q,
+    const ocs2::vector_t& v,
+    const ocs2::vector_t& generalizedAccelerations,
+    const ocs2::vector_t& input,
+    ocs2::PinocchioInterface& pinocchioInterface,
+    const StateConverter<ocs2::scalar_t>& stateConverter,
+    pinocchio::ReferenceFrame referenceFrame) {
+    const auto& model = pinocchioInterface.getModel();
+    auto& data = pinocchioInterface.getData();
+    const size_t tangentDim = stateConverter.getTangentDim();
+    const size_t baseVDim = stateConverter.getBaseVDim();
+    const size_t jointDim = stateConverter.getJointDim();
+
+    BaseAccelerationLinearApproximation approximation;
+    approximation.dfdq.setZero(baseVDim, tangentDim);
+    approximation.dfdv.setZero(baseVDim, tangentDim);
+    approximation.dfdu.setZero(baseVDim, stateConverter.getInputDim());
+    if (baseVDim == 0) {
+      return approximation;
+    }
+
+    pinocchio::computeRNEADerivatives(model, data, q, v, generalizedAccelerations);
+    const ocs2::matrix_t dtau_dq = data.dtau_dq;
+    const ocs2::matrix_t dtau_dv = data.dtau_dv;
+    ocs2::matrix_t M = data.M;
+    M.triangularView<Eigen::StrictlyLower>() = M.transpose().triangularView<Eigen::StrictlyLower>();
+
+    ocs2::matrix_t externalForcesDerivative = ocs2::matrix_t::Zero(tangentDim, tangentDim);
+    for (size_t column = 0; column < tangentDim; ++column) {
+      ocs2::vector_t tangentDirection = ocs2::vector_t::Zero(tangentDim);
+      tangentDirection(column) = 1.0;
+      pinocchio::computeJointJacobiansTimeVariation(model, data, q, tangentDirection);
+
+      for (size_t i = 0; i < stateConverter.contactCandidateIds.size(); ++i) {
+        ocs2::matrix_t dJ = ocs2::matrix_t::Zero(6, tangentDim);
+        pinocchio::getFrameJacobianTimeVariation(model, data, stateConverter.contactCandidateIds[i], referenceFrame, dJ);
+        externalForcesDerivative.col(column).noalias() += dJ.transpose() * stateConverter.getContactWrench(input, i);
+      }
+    }
+
+    const ocs2::matrix_t M_bb = M.topLeftCorner(baseVDim, baseVDim);
+    const auto MbbSolver = M_bb.ldlt();
+    const ocs2::matrix_t baseResidualDerivativeQ = dtau_dq.topRows(baseVDim) - externalForcesDerivative.topRows(baseVDim);
+    approximation.dfdq = -MbbSolver.solve(baseResidualDerivativeQ);
+    approximation.dfdv = -MbbSolver.solve(dtau_dv.topRows(baseVDim));
+
+    pinocchio::computeJointJacobians(model, data, q);
+    for (size_t i = 0; i < stateConverter.contactCandidateIds.size(); ++i) {
+      ocs2::matrix_t J = ocs2::matrix_t::Zero(6, tangentDim);
+      pinocchio::getFrameJacobian(model, data, stateConverter.contactCandidateIds[i], referenceFrame, J);
+      approximation.dfdu.block(0, i * 6, baseVDim, 6) = MbbSolver.solve(J.block(0, 0, 6, baseVDim).transpose());
+    }
+
+    approximation.dfdu.block(0, stateConverter.getJointAccelerationsStartindex(), baseVDim, jointDim) =
+      -MbbSolver.solve(M.block(0, baseVDim, baseVDim, jointDim));
+    return approximation;
+  }
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, 6, 1> computeBaseAcceleration(const Eigen::Matrix<SCALAR_T, -1, 1>& state,

@@ -16,6 +16,10 @@ namespace ocp_solver {
     void request(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u) override;
     ocs2::PinocchioInterface& getPinocchioInterface() { return pinocchioInterface_; }
     ocs2::PinocchioInterface& getPinocchioInterface() const { return pinocchioInterface_; }
+    const ocs2::vector_t& getGeneralizedCoordinates() const { return q_; }
+    const ocs2::vector_t& getGeneralizedVelocities() const { return v_; }
+    const ocs2::vector_t& getGeneralizedAccelerations() const { return a_; }
+    const ocs2::vector_t& getInput() const { return input_; }
 
   protected:
     OCPPreComputation(const OCPPreComputation& rhs);
@@ -24,6 +28,10 @@ namespace ocp_solver {
 
     mutable ocs2::PinocchioInterface pinocchioInterface_;
     const StateConverter<ocs2::scalar_t>* stateConverterPtr_;
+    ocs2::vector_t q_;
+    ocs2::vector_t v_;
+    ocs2::vector_t a_;
+    ocs2::vector_t input_;
   };
 
 }
