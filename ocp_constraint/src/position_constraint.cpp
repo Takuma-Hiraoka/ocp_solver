@@ -68,8 +68,7 @@ namespace ocp_constraint {
     ocs2::VectorFunctionLinearApproximation linearApproximation =
       ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), 2*pinocchioInterface.getModel().nv, input.size());
 
-    // Orientation error gains are ignored for now
-    // This is equal with assuming that the bottom 3 rows of Ax are zero.
+
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
       for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {

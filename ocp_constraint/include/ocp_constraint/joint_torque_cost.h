@@ -4,10 +4,13 @@
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 #include <ocp_solver/solver/state_converter.h>
 
+#include <memory>
+
 namespace ocp_constraint {
   class JointTorqueCost : public ocs2::StateInputCost {
   public:
     JointTorqueCost(const ocs2::matrix_t& weights, const ocp_solver::StateConverter<ocs2::scalar_t>& stateConverter);
+    JointTorqueCost(const JointTorqueCost& rhs);
     ~JointTorqueCost() override = default;
     JointTorqueCost* clone() const override { return new JointTorqueCost(*this); }
 
@@ -19,8 +22,7 @@ namespace ocp_constraint {
                                                                          const ocs2::PreComputation& preComp) const final;
 
   private:
-   ocs2::matrix_t sqrtWeights_;
-   ocp_solver::StateConverter<ocs2::scalar_t>* stateConverter_;
+   ocs2::matrix_t weights_;
+   std::unique_ptr<ocp_solver::StateConverter<ocs2::scalar_t>> stateConverter_;
   };
 }
-
