@@ -1,5 +1,6 @@
 #include "ocp_solver/solver/system_dynamics.h"
 #include "ocp_solver/solver/dynamics_helper_functions.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
 
 namespace ocp_solver {
   SystemDynamics::SystemDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
@@ -37,8 +38,11 @@ namespace ocp_solver {
       qdd.head(6) = approximation.f.segment(tangentDim, 6);
       qdd.tail(jointDim) = qddJoints;
 
+      const auto* ocpPreComputation = dynamic_cast<const OCPPreComputation*>(&preComputation);
       const BaseAccelerationLinearApproximation baseAccelerationApprox =
-        computeBaseAccelerationLinearApproximation(q, v, qdd, u, pinInterface_, stateConverter_);
+        (ocpPreComputation != nullptr)
+          ? ocpPreComputation->getBaseAccelerationLinearApproximation()
+          : computeBaseAccelerationLinearApproximation(q, v, qdd, u, pinInterface_, stateConverter_);
       approximation.dfdx.block(tangentDim, 0, 6, tangentDim) = baseAccelerationApprox.dfdq;
       approximation.dfdx.block(tangentDim, tangentDim, 6, tangentDim) = baseAccelerationApprox.dfdv;
       approximation.dfdu.block(tangentDim, 0, 6, u.rows()) = baseAccelerationApprox.dfdu;

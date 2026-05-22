@@ -1,6 +1,7 @@
 #include <ocs2_core/PreComputation.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
+#include "ocp_solver/solver/dynamics_helper_functions.h"
 #include "ocp_solver/solver/state_converter.h"
 
 namespace ocp_solver {
@@ -20,11 +21,12 @@ namespace ocp_solver {
     const ocs2::vector_t& getGeneralizedVelocities() const { return v_; }
     const ocs2::vector_t& getGeneralizedAccelerations() const { return a_; }
     const ocs2::vector_t& getInput() const { return input_; }
+    const BaseAccelerationLinearApproximation& getBaseAccelerationLinearApproximation() const;
 
   protected:
     OCPPreComputation(const OCPPreComputation& rhs);
 
-    void updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a);
+    void updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a) const;
 
     mutable ocs2::PinocchioInterface pinocchioInterface_;
     const StateConverter<ocs2::scalar_t>* stateConverterPtr_;
@@ -32,6 +34,8 @@ namespace ocp_solver {
     ocs2::vector_t v_;
     ocs2::vector_t a_;
     ocs2::vector_t input_;
+    mutable bool baseAccelerationLinearApproximationValid_ = false;
+    mutable BaseAccelerationLinearApproximation baseAccelerationLinearApproximation_;
   };
 
 }

@@ -25,13 +25,15 @@ namespace ocp_solver {
       q_(rhs.q_),
       v_(rhs.v_),
       a_(rhs.a_),
-      input_(rhs.input_) {}
+      input_(rhs.input_),
+      baseAccelerationLinearApproximationValid_(rhs.baseAccelerationLinearApproximationValid_),
+      baseAccelerationLinearApproximation_(rhs.baseAccelerationLinearApproximation_) {}
 
   OCPPreComputation* OCPPreComputation::clone() const {
     return new OCPPreComputation(*this);
   }
 
-  void OCPPreComputation::updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a) {
+  void OCPPreComputation::updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a) const {
     const pinocchio::Model& model = pinocchioInterface_.getModel();
     pinocchio::Data& data = pinocchioInterface_.getData();
 
@@ -41,6 +43,16 @@ namespace ocp_solver {
     pinocchio::crba(model, data, q);
     pinocchio::nonLinearEffects(model, data, q, v);
     pinocchio::computeForwardKinematicsDerivatives(model, data, q, v, a);
+  }
+
+  const BaseAccelerationLinearApproximation& OCPPreComputation::getBaseAccelerationLinearApproximation() const {
+    if (!baseAccelerationLinearApproximationValid_) {
+      baseAccelerationLinearApproximation_ =
+        computeBaseAccelerationLinearApproximation(q_, v_, a_, input_, pinocchioInterface_, *stateConverterPtr_);
+      updatePinocchioModelKinematics(q_, v_, a_);
+      baseAccelerationLinearApproximationValid_ = true;
+    }
+    return baseAccelerationLinearApproximation_;
   }
 
   void OCPPreComputation::request(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u) {
@@ -53,6 +65,7 @@ namespace ocp_solver {
     v_ = stateConverterPtr_->getGeneralizedVelocities(x, u);
     a_ = computeGeneralizedAccelerations(x, u, pinocchioInterface_, sc);
     input_ = u;
+    baseAccelerationLinearApproximationValid_ = false;
     updatePinocchioModelKinematics(q_, v_, a_);
 
   }

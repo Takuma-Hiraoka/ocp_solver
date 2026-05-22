@@ -71,13 +71,15 @@ namespace ocp_solver {
 
       ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
       const BaseAccelerationLinearApproximation baseAccelerationApprox =
-        computeBaseAccelerationLinearApproximation(preComputation.getGeneralizedCoordinates(),
-                                                   preComputation.getGeneralizedVelocities(),
-                                                   preComputation.getGeneralizedAccelerations(),
-                                                   preComputation.getInput(),
-                                                   pinocchioInterface,
-                                                   stateConverter,
-                                                   referenceFrame);
+        (referenceFrame == pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED)
+          ? preComputation.getBaseAccelerationLinearApproximation()
+          : computeBaseAccelerationLinearApproximation(preComputation.getGeneralizedCoordinates(),
+                                                       preComputation.getGeneralizedVelocities(),
+                                                       preComputation.getGeneralizedAccelerations(),
+                                                       preComputation.getInput(),
+                                                       pinocchioInterface,
+                                                       stateConverter,
+                                                       referenceFrame);
       const ocs2::matrix_t framePartialBaseAcceleration =
         frameAccelerationPartialDa.block(rowOffset, 0, rowCount, baseVDim);
       acceleration.dfdx.leftCols(stateConverter.getTangentDim()).noalias() +=
