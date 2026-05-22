@@ -38,6 +38,7 @@ namespace ocp_solver {
       sqpSettings_.useFeedbackPolicy = false;
       sqpSettings_.integratorType = ocs2::SensitivityIntegratorType::EULER;
       sqpSettings_.threadPriority = 90;
+      sqpSettings_.alpha_decay = 0.25;
     }
     ~OCPInterface() override = default;
     void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD=false, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const pinocchio::JointModelComposite& baseJointComposite=pinocchio::JointModelFreeFlyer());
