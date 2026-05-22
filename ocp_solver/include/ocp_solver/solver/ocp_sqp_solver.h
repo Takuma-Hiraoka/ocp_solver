@@ -19,6 +19,5 @@ namespace ocp_solver {
     ocs2::sqp::StepInfo takeStep(const ocs2::PerformanceIndex& baseline, const std::vector<ocs2::AnnotatedTime>& timeDiscretization, const ocs2::vector_t& initState,
                                  const ocs2::SqpSolver::OcpSubproblemSolution& subproblemSolution, ocs2::vector_array_t& x, ocs2::vector_array_t& u,
                                  std::vector<ocs2::Metrics>& metrics);
-    const double deltaClip_ = 10;
   };
 }
