@@ -8,6 +8,7 @@
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>boost</depend>
   <depend>ocs2_robotic_tools</depend>
   <depend>ocs2_core</depend>
   <depend>ocs2_pinocchio_interface</depend>

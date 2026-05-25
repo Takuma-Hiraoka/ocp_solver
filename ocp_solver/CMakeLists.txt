@@ -64,6 +64,10 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
   Eigen3::Eigen
+  Boost::system
+  Boost::filesystem
+  Boost::log
+  Boost::log_setup
   )
 
 ament_target_dependencies(${PROJECT_NAME}
@@ -84,4 +88,4 @@ install(DIRECTORY include/
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(${dependencies})
 
-ament_package()
+ament_package(CONFIG_EXTRAS "cmake/ocp_solver-extras.cmake")
