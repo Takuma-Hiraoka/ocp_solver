@@ -192,7 +192,7 @@ namespace ocp_solver {
     matrix3x_t Jlog;
     pinocchio::Jlog3(referenceOrientation.toRotationMatrix().transpose() * data.oMf[frameId_].rotation(), Jlog);
     error.dfdx.setZero(3, stateConverter_->getStateVariableDim());
-    error.dfdx.leftCols(stateConverter_->getTangentDim()) = Jlog * J.bottomRows<3>();
+    error.dfdx.leftCols(stateConverter_->getTangentDim()) = Jlog * referenceOrientation.toRotationMatrix().transpose() * J.bottomRows<3>();
     return error;
   }
 
