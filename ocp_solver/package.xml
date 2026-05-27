@@ -17,6 +17,7 @@
   <depend>ocs2_mpc</depend>
   <depend>ocs2_sqp</depend>
   <depend>pinocchio_model_builder</depend>
+  <depend>osqp_eigen</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

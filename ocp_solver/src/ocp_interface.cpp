@@ -51,6 +51,11 @@ namespace ocp_solver {
     return mpc;
   }
 
+  std::unique_ptr<PoseOptimizer> OCPInterface::createPoseOptimizer() {
+    problemPtr_->targetTrajectoriesPtr = &referenceManagerPtr_->getTargetTrajectories();
+    return std::make_unique<PoseOptimizer>(sqpSettings_, *problemPtr_, *stateConverterPtr_, *pinocchioInterfacePtr_);
+  }
+
   void OCPInterface::addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model) {
     for (ContactCandidate candidate : contactCandidates) {
       pinocchio::Frame contactCenterFrame(candidate.frameName, model.getJointId(candidate.parentJointName), model.getFrameId(candidate.parentJointName), candidate.localPose, pinocchio::FIXED_JOINT);

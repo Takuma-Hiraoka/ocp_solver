@@ -23,6 +23,7 @@ set(dependencies
   ocs2_mpc
   ocs2_sqp
   pinocchio_model_builder
+  osqp_eigen
 )
 
 foreach(dep ${dependencies})
@@ -32,6 +33,7 @@ endforeach()
 message(WARNING "pinocchiodir ${pinocchio_DIR}")
 add_library(${PROJECT_NAME}
   src/ocp_interface.cpp
+  src/pose_optimizer.cpp
   src/contact_schedule.cpp
   src/solver/switched_model_reference_manager.cpp
   src/solver/dynamics_helper_functions.cpp

@@ -9,6 +9,7 @@
 #include "ocp_solver/contact_candidate.h"
 #include "ocp_solver/solver/switched_model_reference_manager.h"
 #include "ocp_solver/solver/ocp_sqp_mpc.h"
+#include "ocp_solver/pose_optimizer.h"
 
 namespace ocp_solver {
   static pinocchio::JointModelComposite getBaseJointcompositeForAD() {
@@ -43,6 +44,7 @@ namespace ocp_solver {
     ~OCPInterface() override = default;
     void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD=false, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const pinocchio::JointModelComposite& baseJointComposite=pinocchio::JointModelFreeFlyer());
     std::shared_ptr<OcpSqpMpc> createSqpMpc();
+    std::unique_ptr<PoseOptimizer> createPoseOptimizer();
     void addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model);
     void createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap);
 
@@ -54,6 +56,7 @@ namespace ocp_solver {
     const StateConverter<ocs2::ad_scalar_t>& getStateConverterAD() const { return *stateConverterADPtr_; }
     std::shared_ptr<SwitchedModelReferenceManager> getReferenceManagerPtr() { return referenceManagerPtr_; }
     const ocs2::OptimalControlProblem& getOptimalControlProblem() const override { return *this->problemPtr_; }
+    ocs2::OptimalControlProblem& getOptimalControlProblem() { return *this->problemPtr_; }
     const ocs2::Initializer& getInitializer() const override { return *this->initializerPtr_; }
 
     const ocs2::mpc::Settings& mpcSettings() const { return mpcSettings_; }

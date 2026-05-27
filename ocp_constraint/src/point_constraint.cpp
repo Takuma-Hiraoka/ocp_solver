@@ -18,7 +18,7 @@ namespace ocp_constraint {
                                            const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::vector_t constraint(6);
-    constraint = frameDynamicsPtr_->getPosition(ocpPreComp) - targetPose_.translation(),
+    constraint << frameDynamicsPtr_->getPosition(ocpPreComp) - targetPose_.translation(),
         frameDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetPose_.rotation()));
     return constraint;
   }
