@@ -4,11 +4,10 @@
 
 #include <ocs2_core/constraint/StateInputConstraint.h>
 #include <ocp_solver/pinocchio/pinocchio_frame_dynamics_cppad.h>
-#include <ocp_solver/solver/switched_model_reference_manager.h>
 
 namespace ocp_constraint {
 
-  class PositionConstraintAD final : public ocs2::StateInputConstraint {
+  class PositionConstraintAD : public ocs2::StateInputConstraint {
   public:
     struct Config {
       ocs2::matrix_t Ax;
@@ -16,10 +15,12 @@ namespace ocp_constraint {
       ocs2::matrix_t Aa;
     };
 
-    PositionConstraintAD(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                         const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
+    PositionConstraintAD(const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
                          size_t numConstraints,
-                         Config config = Config());
+                         Config config = Config(),
+                         pinocchio::SE3 targetPose = pinocchio::SE3::Identity(),
+                         ocs2::vector_t targetTwist = ocs2::vector_t::Zero(6),
+                         ocs2::vector_t targetAcc = ocs2::vector_t::Zero(6));
 
     ~PositionConstraintAD() override = default;
     PositionConstraintAD* clone() const override { return new PositionConstraintAD(*this); }
@@ -27,9 +28,11 @@ namespace ocp_constraint {
     void configure(Config&& config);
     void configure(const Config& config) { this->configure(Config(config)); }
 
-    ocp_solver::PinocchioFrameDynamicsCppAd& getFrameDynamics() { return *frameDynamicsPtr_; }
+    const ocp_solver::PinocchioFrameDynamicsCppAd& getFrameDynamics() const { return *frameDynamicsPtr_; }
+    virtual const pinocchio::SE3 getTargetPose(ocs2::scalar_t time) const { return targetPose_; }
+    virtual const ocs2::vector_t getTargetTwist(ocs2::scalar_t time) const { return targetTwist_; }
+    virtual const ocs2::vector_t getTargetAcc(ocs2::scalar_t time) const { return targetAcc_; }
 
-    bool isActive(ocs2::scalar_t time) const override;
     size_t getNumConstraints(ocs2::scalar_t time) const override { return numConstraints_; }
     ocs2::vector_t getValue(ocs2::scalar_t time,
                             const ocs2::vector_t& state,
@@ -40,12 +43,16 @@ namespace ocp_constraint {
                                                                    const ocs2::vector_t& input,
                                                                    const ocs2::PreComputation& preComp) const override;
 
-  private:
+  protected:
     PositionConstraintAD(const PositionConstraintAD& rhs);
-    const ocp_solver::SwitchedModelReferenceManager* referenceManagerPtr_;
+
+  private:
     std::unique_ptr<ocp_solver::PinocchioFrameDynamicsCppAd> frameDynamicsPtr_;
     const size_t numConstraints_;
     Config config_;
+    pinocchio::SE3 targetPose_ = pinocchio::SE3::Identity();
+    ocs2::vector_t targetTwist_ = ocs2::vector_t::Zero(6);
+    ocs2::vector_t targetAcc_ = ocs2::vector_t::Zero(6);
   };
 
 }

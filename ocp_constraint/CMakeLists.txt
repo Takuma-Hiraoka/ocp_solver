@@ -17,8 +17,10 @@ endforeach()
 add_library(${PROJECT_NAME}
   src/penalties/piece_wise_polynominal_barrier_penalty.cpp
   src/position_constraint.cpp
+  src/contact_fix_constraint.cpp
   src/point_constraint.cpp
   src/position_constraint_ad.cpp
+  src/contact_fix_constraint_ad.cpp
   src/swing_position_constraint.cpp
   src/swing_position_constraint_ad.cpp
   src/joint_limit_constraint.cpp

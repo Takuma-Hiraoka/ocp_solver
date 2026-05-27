@@ -2,22 +2,28 @@
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 
 namespace ocp_constraint {
-  PositionConstraintAD::PositionConstraintAD(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
-                                             const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
+  PositionConstraintAD::PositionConstraintAD(const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
                                              size_t numConstraints,
-                                             Config config)
+                                             Config config,
+                                             pinocchio::SE3 targetPose,
+                                             ocs2::vector_t targetTwist,
+                                             ocs2::vector_t targetAcc)
     : StateInputConstraint(ocs2::ConstraintOrder::Linear),
-      referenceManagerPtr_(&referenceManager),
       frameDynamicsPtr_(frameDynamics.clone()),
       numConstraints_(numConstraints),
-      config_(std::move(config)) {}
+      config_(std::move(config)),
+      targetPose_(std::move(targetPose)),
+      targetTwist_(std::move(targetTwist)),
+      targetAcc_(std::move(targetAcc)) {}
 
   PositionConstraintAD::PositionConstraintAD(const PositionConstraintAD& rhs)
     : StateInputConstraint(rhs),
-      referenceManagerPtr_(rhs.referenceManagerPtr_),
       frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
       numConstraints_(rhs.numConstraints_),
-      config_(rhs.config_) {}
+      config_(rhs.config_),
+      targetPose_(rhs.targetPose_),
+      targetTwist_(rhs.targetTwist_),
+      targetAcc_(rhs.targetAcc_) {}
 
   void PositionConstraintAD::configure(Config&& config) {
     assert(config.Ax.size() > 0 || config.Av.size() > 0);
@@ -30,20 +36,13 @@ namespace ocp_constraint {
     config_ = std::move(config);
   }
 
-  bool PositionConstraintAD::isActive(ocs2::scalar_t time) const {
-    return referenceManagerPtr_->isInContact(time, frameDynamicsPtr_->getFrameIds()[0]);
-  }
-
   ocs2::vector_t PositionConstraintAD::getValue(ocs2::scalar_t time,
                                                 const ocs2::vector_t& state,
                                                 const ocs2::vector_t& input,
                                                 const ocs2::PreComputation& preComp) const {
     ocs2::vector_t f = ocs2::vector_t::Zero(numConstraints_);
     if (config_.Ax.size() > 0) {
-      pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
-      for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
-        if (contact.first == frameDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
-      }
+      const pinocchio::SE3 targetPose = getTargetPose(time);
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
       Eigen::Matrix<ocs2::scalar_t, 6, 1> xError;
       xError << frameDynamicsPtr_->getPosition(state).front() - targetPose.translation(),
@@ -51,10 +50,10 @@ namespace ocp_constraint {
       f.noalias() += config_.Ax * xError;
     }
     if (config_.Av.size() > 0) {
-      f.noalias() += config_.Av * frameDynamicsPtr_->getTwist(state, input).front();
+      f.noalias() += config_.Av * (frameDynamicsPtr_->getTwist(state, input).front() - getTargetTwist(time));
     }
     if (config_.Aa.size() > 0) {
-      f.noalias() += config_.Aa * frameDynamicsPtr_->getAccelerations(state, input).front();
+      f.noalias() += config_.Aa * (frameDynamicsPtr_->getAccelerations(state, input).front() - getTargetAcc(time));
     }
     return f;
   }
@@ -69,10 +68,7 @@ namespace ocp_constraint {
     // Orientation error gains are ignored for now
     // This is equal with assuming that the bottom 3 rows of Ax are zero.
     if (config_.Ax.size() > 0) {
-      pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
-      for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
-        if (contact.first == frameDynamicsPtr_->getFrameIds()[0]) targetPose = contact.second;
-      }
+      const pinocchio::SE3 targetPose = getTargetPose(time);
       const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(state).front();
       const ocs2::VectorFunctionLinearApproximation orientationApprox =
         frameDynamicsPtr_->getOrientationErrorLinearApproximation(state, {ocs2::matrixToQuaternion(targetPose.rotation())}).front();
@@ -85,14 +81,14 @@ namespace ocp_constraint {
 
     if (config_.Av.size() > 0) {
       const ocs2::VectorFunctionLinearApproximation velocityApprox = frameDynamicsPtr_->getTwistLinearApproximation(state, input).front();
-      linearApproximation.f.noalias() += config_.Av * velocityApprox.f;
+      linearApproximation.f.noalias() += config_.Av * (velocityApprox.f - getTargetTwist(time));
       linearApproximation.dfdx.noalias() += config_.Av * velocityApprox.dfdx;
       linearApproximation.dfdu.noalias() += config_.Av * velocityApprox.dfdu;
     }
 
     if (config_.Aa.size() > 0) {
       const ocs2::VectorFunctionLinearApproximation accelApprox = frameDynamicsPtr_->getAccelerationsLinearApproximation(state, input).front();
-      linearApproximation.f.noalias() += config_.Aa * accelApprox.f;
+      linearApproximation.f.noalias() += config_.Aa * (accelApprox.f - getTargetAcc(time));
       linearApproximation.dfdx.noalias() += config_.Aa * accelApprox.dfdx;
       linearApproximation.dfdu.noalias() += config_.Aa * accelApprox.dfdu;
     }
