@@ -28,15 +28,16 @@ namespace ocp_solver {
 
     ocs2::VectorFunctionLinearApproximation approximation;
     approximation.dfdx.setZero(stateConverter_.getStateVariableDim(), stateConverter_.getStateVariableDim());
-    approximation.dfdx.topRightCorner(tangentDim, tangentDim) = ocs2::matrix_t::Identity(tangentDim, tangentDim);
+    approximation.dfdx.block(0, tangentDim, tangentDim, tangentDim) = ocs2::matrix_t::Identity(tangentDim, tangentDim);
     approximation.dfdu.setZero(stateConverter_.getStateVariableDim(), u.rows());
-    approximation.dfdu.bottomRightCorner(jointDim, jointDim) = ocs2::matrix_t::Identity(jointDim, jointDim);
+    approximation.dfdu.block(tangentDim + stateConverter_.getBaseVDim(), stateConverter_.getJointAccelerationsStartindex(), jointDim, jointDim) =
+      ocs2::matrix_t::Identity(jointDim, jointDim);
     approximation.f = computeStateDerivative<ocs2::scalar_t>(x, u, pinInterface_, stateConverter_);
 
     if (stateConverter_.getBaseVDim() == 6) {
       ocs2::vector_t qdd(tangentDim);
       qdd.head(6) = approximation.f.segment(tangentDim, 6);
-      qdd.tail(jointDim) = qddJoints;
+      qdd.segment(stateConverter_.getBaseVDim(), jointDim) = qddJoints;
 
       const OCPPreComputation* ocpPreComputation = dynamic_cast<const OCPPreComputation*>(&preComputation);
       const BaseAccelerationLinearApproximation baseAccelerationApprox =

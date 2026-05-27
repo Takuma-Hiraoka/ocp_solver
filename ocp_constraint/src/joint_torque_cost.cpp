@@ -99,8 +99,8 @@ namespace ocp_constraint {
       dtaudx.leftCols(tangentDim).noalias() =
         data.dtau_dq.bottomRows(jointDim) + dtauda * dqdd_dx.leftCols(tangentDim) -
         externalDerivativeQ.bottomRows(jointDim);
-      dtaudx.rightCols(tangentDim).noalias() =
-        data.dtau_dv.bottomRows(jointDim) + dtauda * dqdd_dx.rightCols(tangentDim);
+      dtaudx.block(0, tangentDim, jointDim, tangentDim).noalias() =
+        data.dtau_dv.bottomRows(jointDim) + dtauda * dqdd_dx.block(0, tangentDim, tangentDim, tangentDim);
       dtaudu.noalias() = dtauda * dqdd_du - externalDerivativeU.bottomRows(jointDim);
 
       return {dtaudx, dtaudu};

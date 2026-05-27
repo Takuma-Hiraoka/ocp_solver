@@ -36,7 +36,7 @@ namespace ocp_solver {
     // velocity function
     std::function<void(const ocs2::ad_vector_t&, const ocs2::ad_vector_t&, ocs2::ad_vector_t&)> velocityFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
                           const ocs2::ad_vector_t state = x.head(stateVariableDim);
-                          const ocs2::ad_vector_t input = x.tail(inputDim);
+                          const ocs2::ad_vector_t input = x.segment(stateVariableDim, inputDim);
                           y = getVelocityCppAd(state, input, p);
                         };
     velocityCppAdInterfacePtr_.reset(new ocs2::CppAdInterface(velocityFunc, stateVariableDim + inputDim, stateDim, modelName + "_velocity", modelFolder));
@@ -57,7 +57,7 @@ namespace ocp_solver {
     // velocity function
     std::function<void(const ocs2::ad_vector_t&, const ocs2::ad_vector_t&, ocs2::ad_vector_t&)> angularVelocityFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
                                  const ocs2::ad_vector_t state = x.head(stateVariableDim);
-                                 const ocs2::ad_vector_t input = x.tail(inputDim);
+                                 const ocs2::ad_vector_t input = x.segment(stateVariableDim, inputDim);
                                  y = getAngularVelocityCppAd(state, input, p);
                                };
     angularVelocityCppAdInterfacePtr_.reset(
@@ -66,7 +66,7 @@ namespace ocp_solver {
     // twist function
     std::function<void(const ocs2::ad_vector_t&, const ocs2::ad_vector_t&, ocs2::ad_vector_t&)> twistFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
                        const ocs2::ad_vector_t state = x.head(stateVariableDim);
-                       const ocs2::ad_vector_t input = x.tail(inputDim);
+                       const ocs2::ad_vector_t input = x.segment(stateVariableDim, inputDim);
                        y = getTwistCppAd(state, input, p);
                      };
     twistCppAdInterfacePtr_.reset(new ocs2::CppAdInterface(twistFunc, stateVariableDim + inputDim, stateDim, modelName + "_twist", modelFolder));
@@ -74,7 +74,7 @@ namespace ocp_solver {
     // linear acceleration function
     std::function<void(const ocs2::ad_vector_t&, const ocs2::ad_vector_t&, ocs2::ad_vector_t&)> linearAccelerationFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
                                     const ocs2::ad_vector_t state = x.head(stateVariableDim);
-                                    const ocs2::ad_vector_t input = x.tail(inputDim);
+                                    const ocs2::ad_vector_t input = x.segment(stateVariableDim, inputDim);
                                     y = getLinearAccelerationCppAd(state, input, p);
                                   };
     linearAccelerationCppAdInterfacePtr_.reset(
@@ -83,7 +83,7 @@ namespace ocp_solver {
     // velocity function
     std::function<void(const ocs2::ad_vector_t&, const ocs2::ad_vector_t&, ocs2::ad_vector_t&)> angularAccelerationFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
                                      const ocs2::ad_vector_t state = x.head(stateVariableDim);
-                                     const ocs2::ad_vector_t input = x.tail(inputDim);
+                                     const ocs2::ad_vector_t input = x.segment(stateVariableDim, inputDim);
                                      y = getAngularAccelerationCppAd(state, input, p);
                                    };
     angularAccelerationCppAdInterfacePtr_.reset(
@@ -92,7 +92,7 @@ namespace ocp_solver {
     // twist function
     std::function<void(const ocs2::ad_vector_t&, const ocs2::ad_vector_t&, ocs2::ad_vector_t&)> accelerationsFunc = [&, this](const ocs2::ad_vector_t& x, const ocs2::ad_vector_t& p, ocs2::ad_vector_t& y) {
                                const ocs2::ad_vector_t state = x.head(stateVariableDim);
-                               const ocs2::ad_vector_t input = x.tail(inputDim);
+                               const ocs2::ad_vector_t input = x.segment(stateVariableDim, inputDim);
                                y = getAccelerationsCppAd(state, input, p);
                              };
     accelerationsCppAdInterfacePtr_.reset(
@@ -191,7 +191,7 @@ namespace ocp_solver {
     const pinocchio::ModelTpl<ocs2::ad_scalar_t>& model = pinocchioInterfaceCppAd_.getModel();
     pinocchio::DataTpl<ocs2::ad_scalar_t>& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
-    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.tail(model.nv);
+    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.segment(model.nv, model.nv);
 
     pinocchio::forwardKinematics(model, data, q, v);
 
@@ -348,7 +348,7 @@ namespace ocp_solver {
     const pinocchio::ModelTpl<ocs2::ad_scalar_t>& model = pinocchioInterfaceCppAd_.getModel();
     pinocchio::DataTpl<ocs2::ad_scalar_t>& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
-    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.tail(model.nv);
+    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.segment(model.nv, model.nv);
 
     pinocchio::forwardKinematics(model, data, q, v);
 
@@ -399,7 +399,7 @@ namespace ocp_solver {
     const pinocchio::ModelTpl<ocs2::ad_scalar_t>& model = pinocchioInterfaceCppAd_.getModel();
     pinocchio::DataTpl<ocs2::ad_scalar_t>& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
-    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.tail(model.nv);
+    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.segment(model.nv, model.nv);
 
     pinocchio::forwardKinematics(model, data, q, v);
 
@@ -454,7 +454,7 @@ namespace ocp_solver {
     const pinocchio::ModelTpl<ocs2::ad_scalar_t>& model = pinocchioInterfaceCppAd_.getModel();
     pinocchio::DataTpl<ocs2::ad_scalar_t>& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
-    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.tail(model.nv);
+    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.segment(model.nv, model.nv);
     const ocs2::ad_vector_t a = computeGeneralizedAccelerations<ocs2::ad_scalar_t>(p, input, pinocchioInterfaceCppAd_, *mappingPtr_);
 
     pinocchio::forwardKinematics(model, data, q, v, a);
@@ -507,7 +507,7 @@ namespace ocp_solver {
     const pinocchio::ModelTpl<ocs2::ad_scalar_t>& model = pinocchioInterfaceCppAd_.getModel();
     pinocchio::DataTpl<ocs2::ad_scalar_t>& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
-    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.tail(model.nv);
+    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.segment(model.nv, model.nv);
     const ocs2::ad_vector_t a = computeGeneralizedAccelerations<ocs2::ad_scalar_t>(p, input, pinocchioInterfaceCppAd_, *mappingPtr_);
 
     pinocchio::forwardKinematics(model, data, q, v, a);
@@ -560,7 +560,7 @@ namespace ocp_solver {
     const pinocchio::ModelTpl<ocs2::ad_scalar_t>& model = pinocchioInterfaceCppAd_.getModel();
     pinocchio::DataTpl<ocs2::ad_scalar_t>& data = pinocchioInterfaceCppAd_.getData();
     const ocs2::ad_vector_t q = pinocchio::integrate(model, mappingPtr_->getGeneralizedCoordinates(p), dx.head(model.nv));
-    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.tail(model.nv);
+    const ocs2::ad_vector_t v = mappingPtr_->getGeneralizedVelocities(p, input) + dx.segment(model.nv, model.nv);
     const ocs2::ad_vector_t a = computeGeneralizedAccelerations<ocs2::ad_scalar_t>(p, input, pinocchioInterfaceCppAd_, *mappingPtr_);
 
     pinocchio::forwardKinematics(model, data, q, v, a);

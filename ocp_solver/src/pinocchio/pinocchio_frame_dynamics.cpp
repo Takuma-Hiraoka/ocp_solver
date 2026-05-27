@@ -84,7 +84,7 @@ namespace ocp_solver {
         frameAccelerationPartialDa.block(rowOffset, 0, rowCount, baseVDim);
       acceleration.dfdx.leftCols(stateConverter.getTangentDim()).noalias() +=
         framePartialBaseAcceleration * baseAccelerationApprox.dfdq;
-      acceleration.dfdx.rightCols(stateConverter.getTangentDim()).noalias() +=
+      acceleration.dfdx.block(0, stateConverter.getTangentDim(), acceleration.dfdx.rows(), stateConverter.getTangentDim()).noalias() +=
         framePartialBaseAcceleration * baseAccelerationApprox.dfdv;
       acceleration.dfdu.noalias() += framePartialBaseAcceleration * baseAccelerationApprox.dfdu;
     }
@@ -157,7 +157,7 @@ namespace ocp_solver {
     vel.f = frameVel.linear();
     vel.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     vel.dfdx.leftCols(stateConverter_->getTangentDim()) = v_partial_dq.topRows(3);
-    vel.dfdx.rightCols(stateConverter_->getTangentDim()) = v_partial_dv.topRows(3);
+    vel.dfdx.block(0, stateConverter_->getTangentDim(), 3, stateConverter_->getTangentDim()) = v_partial_dv.topRows(3);
 
     return vel;
   }
@@ -218,7 +218,7 @@ namespace ocp_solver {
     vel.f = frameVel.angular();
     vel.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     vel.dfdx.leftCols(stateConverter_->getTangentDim()) = v_partial_dq.bottomRows(3);
-    vel.dfdx.rightCols(stateConverter_->getTangentDim()) = v_partial_dv.bottomRows(3);
+    vel.dfdx.block(0, stateConverter_->getTangentDim(), 3, stateConverter_->getTangentDim()) = v_partial_dv.bottomRows(3);
 
     return vel;
   }
@@ -255,7 +255,7 @@ namespace ocp_solver {
 
     twist.dfdx.setZero(6, stateConverter_->getStateVariableDim());
     twist.dfdx.leftCols(stateConverter_->getTangentDim()) = v_partial_dq;
-    twist.dfdx.rightCols(stateConverter_->getTangentDim()) = v_partial_dv;
+    twist.dfdx.block(0, stateConverter_->getTangentDim(), 6, stateConverter_->getTangentDim()) = v_partial_dv;
     return twist;
   }
 
@@ -281,10 +281,11 @@ namespace ocp_solver {
 
     acceleration.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = derivatives.dfdq.topRows(3);
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = derivatives.dfdv.topRows(3);
+    acceleration.dfdx.block(0, stateConverter_->getTangentDim(), 3, stateConverter_->getTangentDim()) = derivatives.dfdv.topRows(3);
 
     acceleration.dfdu.setZero(3, stateConverter_->getInputDim());
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = derivatives.dfda.rightCols(stateConverter_->getJointDim()).topRows(3);
+    acceleration.dfdu.block(0, stateConverter_->getJointAccelerationsStartindex(), 3, stateConverter_->getJointDim()) =
+      derivatives.dfda.block(0, stateConverter_->getBaseVDim(), 3, stateConverter_->getJointDim());
     addBaseAccelerationChainRule(preComputation, *stateConverter_, derivatives.dfda, 0, 3, rf, acceleration);
     return acceleration;
   }
@@ -311,10 +312,11 @@ namespace ocp_solver {
 
     acceleration.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = derivatives.dfdq.bottomRows(3);
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = derivatives.dfdv.bottomRows(3);
+    acceleration.dfdx.block(0, stateConverter_->getTangentDim(), 3, stateConverter_->getTangentDim()) = derivatives.dfdv.bottomRows(3);
 
     acceleration.dfdu.setZero(3, stateConverter_->getInputDim());
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = derivatives.dfda.rightCols(stateConverter_->getJointDim()).bottomRows(3);
+    acceleration.dfdu.block(0, stateConverter_->getJointAccelerationsStartindex(), 3, stateConverter_->getJointDim()) =
+      derivatives.dfda.block(3, stateConverter_->getBaseVDim(), 3, stateConverter_->getJointDim());
     addBaseAccelerationChainRule(preComputation, *stateConverter_, derivatives.dfda, 3, 3, rf, acceleration);
     return acceleration;
   }
@@ -348,9 +350,10 @@ namespace ocp_solver {
 
     acceleration.dfdx.setZero(6, stateConverter_->getStateVariableDim());
     acceleration.dfdx.leftCols(stateConverter_->getTangentDim()) = derivatives.dfdq;
-    acceleration.dfdx.rightCols(stateConverter_->getTangentDim()) = derivatives.dfdv;
+    acceleration.dfdx.block(0, stateConverter_->getTangentDim(), 6, stateConverter_->getTangentDim()) = derivatives.dfdv;
     acceleration.dfdu.setZero(6, stateConverter_->getInputDim());
-    acceleration.dfdu.rightCols(stateConverter_->getJointDim()) = derivatives.dfda.rightCols(stateConverter_->getJointDim());
+    acceleration.dfdu.block(0, stateConverter_->getJointAccelerationsStartindex(), 6, stateConverter_->getJointDim()) =
+      derivatives.dfda.block(0, stateConverter_->getBaseVDim(), 6, stateConverter_->getJointDim());
     addBaseAccelerationChainRule(preComputation, *stateConverter_, derivatives.dfda, 0, 6, rf, acceleration);
 
     return acceleration;

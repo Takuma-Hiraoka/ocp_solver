@@ -23,14 +23,18 @@ namespace ocp_solver {
                                                     const ocs2::ad_vector_t& parameters) const {
     ocs2::ad_vector_t q_v_state(pinInterfaceCppAd.getModel().nq + pinInterfaceCppAd.getModel().nv);
     q_v_state.head(pinInterfaceCppAd.getModel().nq) = pinocchio::integrate(pinInterfaceCppAd.getModel(), parameters.head(pinInterfaceCppAd.getModel().nq), state.head(pinInterfaceCppAd.getModel().nv));
-    q_v_state.tail(pinInterfaceCppAd.getModel().nv) = parameters.tail(pinInterfaceCppAd.getModel().nv) + state.tail(pinInterfaceCppAd.getModel().nv);
+    q_v_state.segment(pinInterfaceCppAd.getModel().nq, pinInterfaceCppAd.getModel().nv) =
+      parameters.segment(pinInterfaceCppAd.getModel().nq, pinInterfaceCppAd.getModel().nv) +
+      state.segment(pinInterfaceCppAd.getModel().nv, pinInterfaceCppAd.getModel().nv);
     return computeStateDerivative<ocs2::ad_scalar_t>(q_v_state, input, pinInterfaceCppAd, stateConverter_);
   }
 
   ocs2::ad_vector_t SystemDynamicsAD::systemJumpMap(ocs2::ad_scalar_t time, const ocs2::ad_vector_t& state, const ocs2::ad_vector_t& parameters) const {
     ocs2::ad_vector_t q_v_state(pinInterfaceCppAd.getModel().nq + pinInterfaceCppAd.getModel().nv);
     q_v_state.head(pinInterfaceCppAd.getModel().nq) = pinocchio::integrate(pinInterfaceCppAd.getModel(), parameters.head(pinInterfaceCppAd.getModel().nq), state.head(pinInterfaceCppAd.getModel().nv));
-    q_v_state.tail(pinInterfaceCppAd.getModel().nv) = parameters.tail(pinInterfaceCppAd.getModel().nv) + state.tail(pinInterfaceCppAd.getModel().nv);
+    q_v_state.segment(pinInterfaceCppAd.getModel().nq, pinInterfaceCppAd.getModel().nv) =
+      parameters.segment(pinInterfaceCppAd.getModel().nq, pinInterfaceCppAd.getModel().nv) +
+      state.segment(pinInterfaceCppAd.getModel().nv, pinInterfaceCppAd.getModel().nv);
     return q_v_state;
   }
 
@@ -54,7 +58,7 @@ namespace ocp_solver {
 
     ocs2::VectorFunctionLinearApproximation approximation;
     approximation.dfdx = flowJacobian_.middleCols(1, dx.rows());
-    approximation.dfdu = flowJacobian_.rightCols(u.rows());
+    approximation.dfdu = flowJacobian_.middleCols(1 + dx.rows(), u.rows());
     approximation.f = flowMapADInterfacePtr_->getFunctionValue(tapedTimeStateInput_, x);
     return approximation;
   }
@@ -66,7 +70,7 @@ namespace ocp_solver {
     jumpJacobian_ = jumpMapADInterfacePtr_->getJacobian(tapedTimeState_, x);
 
     ocs2::VectorFunctionLinearApproximation approximation;
-    approximation.dfdx = jumpJacobian_.rightCols(dx.rows());
+    approximation.dfdx = jumpJacobian_.middleCols(1, dx.rows());
     approximation.dfdu.setZero(jumpJacobian_.rows(), 0);
     approximation.f = jumpMapADInterfacePtr_->getFunctionValue(tapedTimeState_, x);
     return approximation;

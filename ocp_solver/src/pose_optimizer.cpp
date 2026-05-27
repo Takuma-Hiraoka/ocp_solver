@@ -25,7 +25,7 @@ void appendRows(ocs2::matrix_t& matrix, const ocs2::matrix_t& rows) {
 void appendVector(ocs2::vector_t& vector, const ocs2::vector_t& values) {
   const Eigen::Index oldRows = vector.rows();
   vector.conservativeResize(oldRows + values.rows());
-  vector.tail(values.rows()) = values;
+  vector.segment(oldRows, values.rows()) = values;
 }
 
 }  // namespace
@@ -172,8 +172,9 @@ PoseOptimizer::StepResult PoseOptimizer::takeStep(ocs2::scalar_t time, const ocs
   using StepType = ocs2::FilterLinesearch::StepType;
 
   const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
   const ocs2::scalar_t deltaXnorm = delta.head(nqTangent).norm();
-  const ocs2::scalar_t deltaUnorm = delta.tail(delta.rows() - nqTangent).norm();
+  const ocs2::scalar_t deltaUnorm = delta.segment(nqTangent, nw).norm();
 
   ocs2::scalar_t alpha = 1.0;
   do {
@@ -261,8 +262,8 @@ ocs2::sqp::Convergence PoseOptimizer::checkConvergence(int iteration, const ocs2
 }
 
 void PoseOptimizer::zeroVelocityAndAcceleration(ocs2::vector_t& state, ocs2::vector_t& input) const {
-  state.tail(pinocchioInterface_.getModel().nv).setZero();
-  input.tail(stateConverter_.getJointDim()).setZero();
+  state.segment(stateConverter_.getGeneralizedVelocitiesStartindex(), stateConverter_.getTangentDim()).setZero();
+  input.segment(stateConverter_.getJointAccelerationsStartindex(), stateConverter_.getJointDim()).setZero();
 }
 
 ocs2::VectorFunctionLinearApproximation PoseOptimizer::getQuasiStaticBalanceApproximation(
@@ -283,7 +284,8 @@ ocs2::VectorFunctionLinearApproximation PoseOptimizer::getQuasiStaticBalanceAppr
     ocs2::vector_t q = stateConverter_.getGeneralizedCoordinates(state);
     ocs2::vector_t v = stateConverter_.getGeneralizedVelocities(state, input);
     ocs2::vector_t generalizedAccelerations = ocs2::vector_t::Zero(stateConverter_.getTangentDim());
-    generalizedAccelerations.tail(stateConverter_.getJointDim()) = input.tail(stateConverter_.getJointDim());
+    generalizedAccelerations.segment(stateConverter_.getBaseVDim(), stateConverter_.getJointDim()) =
+        stateConverter_.getJointAccelerations(input);
     baseApproximation =
         computeBaseAccelerationLinearApproximation(q, v, generalizedAccelerations, input, pinocchioInterface_, stateConverter_);
   }
@@ -309,7 +311,7 @@ ocs2::vector_t PoseOptimizer::incrementState(const ocs2::vector_t& state, const 
   const int nq = pinocchioInterface_.getModel().nq;
   const int nv = pinocchioInterface_.getModel().nv;
   stateNew.head(nq) = pinocchio::integrate(pinocchioInterface_.getModel(), state.head(nq), alpha * delta.head(nv));
-  stateNew.tail(nv).setZero();
+  stateNew.segment(stateConverter_.getGeneralizedVelocitiesStartindex(), nv).setZero();
   return stateNew;
 }
 
@@ -320,7 +322,7 @@ ocs2::vector_t PoseOptimizer::incrementInput(const ocs2::vector_t& input, const 
   if (nw > 0) {
     inputNew.head(nw) += alpha * delta.segment(nqTangent, nw);
   }
-  inputNew.tail(stateConverter_.getJointDim()).setZero();
+  inputNew.segment(stateConverter_.getJointAccelerationsStartindex(), stateConverter_.getJointDim()).setZero();
   return inputNew;
 }
 
@@ -363,19 +365,19 @@ void PoseOptimizer::addQuadraticApproximation(const ocs2::ScalarFunctionQuadrati
 
   gradient.head(nqTangent) += selectStateGradient(approximation.dfdx);
   if (nw > 0) {
-    gradient.tail(nw) += selectInputGradient(approximation.dfdu);
+    gradient.segment(nqTangent, nw) += selectInputGradient(approximation.dfdu);
   }
 
   if (approximation.dfdxx.size() > 0) {
     hessian.topLeftCorner(nqTangent, nqTangent) += approximation.dfdxx.topLeftCorner(nqTangent, nqTangent);
   }
   if (nw > 0 && approximation.dfduu.size() > 0) {
-    hessian.bottomRightCorner(nw, nw) += approximation.dfduu.topLeftCorner(nw, nw);
+    hessian.block(nqTangent, nqTangent, nw, nw) += approximation.dfduu.topLeftCorner(nw, nw);
   }
   if (nw > 0 && approximation.dfdux.size() > 0) {
     const ocs2::matrix_t cross = approximation.dfdux.topLeftCorner(nw, nqTangent);
-    hessian.bottomLeftCorner(nw, nqTangent) += cross;
-    hessian.topRightCorner(nqTangent, nw) += cross.transpose();
+    hessian.block(nqTangent, 0, nw, nqTangent) += cross;
+    hessian.block(0, nqTangent, nqTangent, nw) += cross.transpose();
   }
   cost += approximation.f;
 }
@@ -394,7 +396,7 @@ void PoseOptimizer::appendLinearConstraint(const ocs2::VectorFunctionLinearAppro
   ocs2::matrix_t rows = ocs2::matrix_t::Zero(nc, nz);
   rows.leftCols(nqTangent) = selectStateRows(approximation.dfdx);
   if (nw > 0) {
-    rows.rightCols(nw) = selectInputRows(approximation.dfdu, nc);
+    rows.block(0, nqTangent, nc, nw) = selectInputRows(approximation.dfdu, nc);
   }
 
   ocs2::vector_t lower(nc);

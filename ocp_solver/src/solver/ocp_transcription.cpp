@@ -24,10 +24,11 @@ namespace ocp_solver {
     dynamics = sensitivityDiscretizer(*optimalControlProblem.dynamicsPtr, t, x, u, dt);
 
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*optimalControlProblem.preComputationPtr).getPinocchioInterface();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
     ocs2::vector_t x_integrated = dynamics.f;
-    ocs2::vector_t x_diff(2*pinocchioInterface.getModel().nv);
-    x_diff.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x_next.head(pinocchioInterface.getModel().nq), x_integrated.head(pinocchioInterface.getModel().nq));
-    x_diff.tail(pinocchioInterface.getModel().nv) = x_integrated.tail(pinocchioInterface.getModel().nv) - x_next.tail(pinocchioInterface.getModel().nv);
+    ocs2::vector_t x_diff(2 * model.nv);
+    x_diff.head(model.nv) = pinocchio::difference(model, x_next.head(model.nq), x_integrated.head(model.nq));
+    x_diff.segment(model.nv, model.nv) = x_integrated.segment(model.nq, model.nv) - x_next.segment(model.nq, model.nv);
     dynamics.f = x_diff;
 
     // Precomputation for other terms
@@ -84,10 +85,11 @@ namespace ocp_solver {
     dynamics = optimalControlProblem.dynamicsPtr->jumpMapLinearApproximation(t, x);
 
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*optimalControlProblem.preComputationPtr).getPinocchioInterface();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
     ocs2::vector_t x_integrated = dynamics.f;
-    ocs2::vector_t x_diff(2*pinocchioInterface.getModel().nv);
-    x_diff.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x_next.head(pinocchioInterface.getModel().nq), x_integrated.head(pinocchioInterface.getModel().nq));
-    x_diff.tail(pinocchioInterface.getModel().nv) = x_integrated.tail(pinocchioInterface.getModel().nv) - x_next.tail(pinocchioInterface.getModel().nv);
+    ocs2::vector_t x_diff(2 * model.nv);
+    x_diff.head(model.nv) = pinocchio::difference(model, x_next.head(model.nq), x_integrated.head(model.nq));
+    x_diff.segment(model.nv, model.nv) = x_integrated.segment(model.nq, model.nv) - x_next.segment(model.nq, model.nv);
     dynamics.f = x_diff;
 
     dynamics.dfdu.setZero(x.size(), 0);  // Overwrite derivative that shouldn't exist.

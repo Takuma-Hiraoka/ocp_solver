@@ -67,9 +67,10 @@ namespace ocp_solver {
 
       // use pinocchioInterface
       ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
-      ocs2::vector_t delta_x0(2*pinocchioInterface.getModel().nv);
-      delta_x0.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x[0].head(pinocchioInterface.getModel().nq), initState.head(pinocchioInterface.getModel().nq));
-      delta_x0.tail(pinocchioInterface.getModel().nv) = initState.tail(pinocchioInterface.getModel().nv) - x[0].tail(pinocchioInterface.getModel().nv);
+      const pinocchio::Model& model = pinocchioInterface.getModel();
+      ocs2::vector_t delta_x0(2 * model.nv);
+      delta_x0.head(model.nv) = pinocchio::difference(model, x[0].head(model.nq), initState.head(model.nq));
+      delta_x0.segment(model.nv, model.nv) = initState.segment(model.nq, model.nv) - x[0].segment(model.nq, model.nv);
 
       const ocs2::SqpSolver::OcpSubproblemSolution deltaSolution = getOCPSolution(delta_x0);
       extractValueFunction(timeDiscretization, x);
@@ -194,9 +195,10 @@ namespace ocp_solver {
     // Account for initial state in performance
     // use pinocchioInterface
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
-    ocs2::vector_t initDynamicsViolation(2*pinocchioInterface.getModel().nv);
-    initDynamicsViolation.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x[0].head(pinocchioInterface.getModel().nq), initState.head(pinocchioInterface.getModel().nq));
-    initDynamicsViolation.tail(pinocchioInterface.getModel().nv) = initState.tail(pinocchioInterface.getModel().nv) - x[0].tail(pinocchioInterface.getModel().nv);
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    ocs2::vector_t initDynamicsViolation(2 * model.nv);
+    initDynamicsViolation.head(model.nv) = pinocchio::difference(model, x[0].head(model.nq), initState.head(model.nq));
+    initDynamicsViolation.segment(model.nv, model.nv) = initState.segment(model.nq, model.nv) - x[0].segment(model.nq, model.nv);
 
     metrics.front().dynamicsViolation += initDynamicsViolation;
     performance.front().dynamicsViolationSSE += initDynamicsViolation.squaredNorm();
@@ -247,9 +249,10 @@ namespace ocp_solver {
 
     // Account for initial state in performance
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
-    ocs2::vector_t initDynamicsViolation(2*pinocchioInterface.getModel().nv);
-    initDynamicsViolation.head(pinocchioInterface.getModel().nv) = pinocchio::difference(pinocchioInterface.getModel(), x[0].head(pinocchioInterface.getModel().nq), initState.head(pinocchioInterface.getModel().nq));
-    initDynamicsViolation.tail(pinocchioInterface.getModel().nv) = initState.tail(pinocchioInterface.getModel().nv) - x[0].tail(pinocchioInterface.getModel().nv);
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    ocs2::vector_t initDynamicsViolation(2 * model.nv);
+    initDynamicsViolation.head(model.nv) = pinocchio::difference(model, x[0].head(model.nq), initState.head(model.nq));
+    initDynamicsViolation.segment(model.nv, model.nv) = initState.segment(model.nq, model.nv) - x[0].segment(model.nq, model.nv);
     metrics.front().dynamicsViolation += initDynamicsViolation;
     performance.front().dynamicsViolationSSE += initDynamicsViolation.squaredNorm();
 
@@ -262,10 +265,11 @@ namespace ocp_solver {
   void OcpSqpSolver::incrementStateTrajectory(const ocs2::vector_array_t& v, const ocs2::vector_array_t& dv, const ocs2::scalar_t alpha, ocs2::vector_array_t& vNew) {
     if (v.size() != vNew.size()) throw std::runtime_error("[incrementTrajectory] Resize vNew to the size of v!");
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
+    const pinocchio::Model& model = pinocchioInterface.getModel();
     for (int i = 0; i < v.size(); i++) {
       vNew[i].resize(v[i].size());
-      vNew[i].head(pinocchioInterface.getModel().nq) = pinocchio::integrate(pinocchioInterface.getModel(), v[i].head(pinocchioInterface.getModel().nq), alpha * dv[i].head(pinocchioInterface.getModel().nv));
-      vNew[i].tail(pinocchioInterface.getModel().nv) = v[i].tail(pinocchioInterface.getModel().nv) + alpha * dv[i].tail(pinocchioInterface.getModel().nv);
+      vNew[i].head(model.nq) = pinocchio::integrate(model, v[i].head(model.nq), alpha * dv[i].head(model.nv));
+      vNew[i].segment(model.nq, model.nv) = v[i].segment(model.nq, model.nv) + alpha * dv[i].segment(model.nv, model.nv);
     }
   }
 

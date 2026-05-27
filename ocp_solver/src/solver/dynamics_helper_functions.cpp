@@ -155,7 +155,7 @@ namespace ocp_solver {
     // Generalized Accelerations = [ddq_base, ddq_joints]
     Eigen::Matrix<SCALAR_T, -1, 1> generalizedAccelerations = Eigen::Matrix<SCALAR_T, -1, 1>::Zero(stateConverter.getTangentDim());
     if (stateConverter.getBaseVDim() == 6) generalizedAccelerations.head(6) = computeBaseAcceleration<SCALAR_T>(state, input, pinInterface, stateConverter);
-    generalizedAccelerations.tail(stateConverter.getJointDim()) = stateConverter.getJointAccelerations(input);
+    generalizedAccelerations.segment(stateConverter.getBaseVDim(), stateConverter.getJointDim()) = stateConverter.getJointAccelerations(input);
     return generalizedAccelerations;
   }
   template ocs2::ad_vector_t computeGeneralizedAccelerations(const ocs2::ad_vector_t& state,
@@ -181,7 +181,7 @@ namespace ocp_solver {
       state_derivative.segment(3, 3) = state.segment(stateConverter.getGenCoordinatesDim() + 3, 3);
     }
     state_derivative.segment(stateConverter.getBaseVDim(), stateConverter.getJointDim()) = stateConverter.getJointVelocities(state, input);
-    state_derivative.tail(stateConverter.getTangentDim()) =
+    state_derivative.segment(stateConverter.getTangentDim(), stateConverter.getTangentDim()) =
       computeGeneralizedAccelerations<SCALAR_T>(state, input, pinInterface, stateConverter);
     return state_derivative;
   }
@@ -243,12 +243,14 @@ namespace ocp_solver {
 
     Eigen::Matrix<SCALAR_T, -1, 1> q_dd(n_qd);
     if (n_qd > qdd_joints.size()) q_dd.head(6) = computeBaseAcceleration(data.M, data.nle, qdd_joints, externalForcesInJointSpace);
-    q_dd.tail(qdd_joints.size()) = qdd_joints;
+    q_dd.segment(n_qd - qdd_joints.size(), qdd_joints.size()) = qdd_joints;
 
     size_t n_joints = qdd_joints.size();
 
     Eigen::Matrix<SCALAR_T, -1, 1> jointTorques =
-      data.M.bottomRows(n_joints) * q_dd + data.nle.tail(n_joints) - externalForcesInJointSpace.tail(n_joints);
+      data.M.block(n_qd - n_joints, 0, n_joints, n_qd) * q_dd +
+      data.nle.segment(n_qd - n_joints, n_joints) -
+      externalForcesInJointSpace.segment(n_qd - n_joints, n_joints);
 
     // return jointTorques;
     return jointTorques;
@@ -305,11 +307,11 @@ namespace ocp_solver {
 
     Eigen::Matrix<SCALAR_T, -1, 1> q_dd(n_qd);
     if (n_qd > qdd_joints.size()) q_dd.head(6) = computeBaseAcceleration(data.M, data.nle, qdd_joints, externalForcesInJointSpace);
-    q_dd.tail(qdd_joints.size()) = qdd_joints;
+    q_dd.segment(n_qd - qdd_joints.size(), qdd_joints.size()) = qdd_joints;
 
     ocs2::vector_t torques = pinocchio::rnea(model, data, q, qd, q_dd, fextDesired);
 
-    return torques.tail(qdd_joints.size());
+    return torques.segment(n_qd - qdd_joints.size(), qdd_joints.size());
   }
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,

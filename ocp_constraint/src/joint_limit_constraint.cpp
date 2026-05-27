@@ -9,8 +9,8 @@ namespace ocp_constraint {
     : penaltyPtr_(new ocs2::PieceWisePolynomialBarrierPenalty(barrierConfig)),
       stateConverterPtr_(&stateConverter) {
     const pinocchio::Model& model = pinocchioInterface.getModel();
-    ocs2::vector_t upper_limits = model.upperPositionLimit.tail(stateConverterPtr_->getJointDim());
-    ocs2::vector_t lower_limits = model.lowerPositionLimit.tail(stateConverterPtr_->getJointDim());
+    ocs2::vector_t upper_limits = model.upperPositionLimit.segment(stateConverterPtr_->getJointStartindex(), stateConverterPtr_->getJointDim());
+    ocs2::vector_t lower_limits = model.lowerPositionLimit.segment(stateConverterPtr_->getJointStartindex(), stateConverterPtr_->getJointDim());
     positionLimits_ = {lower_limits, upper_limits};
   }
 
