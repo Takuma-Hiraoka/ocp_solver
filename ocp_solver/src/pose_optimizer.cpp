@@ -8,6 +8,9 @@
 #include <OsqpEigen/OsqpEigen.h>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 
+#include "ocp_solver/solver/dynamics_helper_functions.h"
+#include "ocp_solver/solver/ocp_pre_computation.h"
+
 namespace ocp_solver {
 namespace {
 
@@ -51,6 +54,7 @@ PoseOptimizerResult PoseOptimizer::run(ocs2::scalar_t time, const ocs2::vector_t
 
   ocs2::vector_t state = initialState;
   ocs2::vector_t input = initialInput;
+  zeroVelocityAndAcceleration(state, input);
 
   PoseOptimizerResult result;
   result.convergence = ocs2::sqp::Convergence::FALSE;
@@ -117,6 +121,8 @@ PoseOptimizer::QuadraticSubproblem PoseOptimizer::setupQuadraticSubproblem(ocs2:
                          subproblem.lowerBound, subproblem.upperBound);
   appendLinearConstraint(problem_.equalityConstraintPtr->getLinearApproximation(time, state, input, preComp), true, subproblem.constraints,
                          subproblem.lowerBound, subproblem.upperBound);
+  appendLinearConstraint(getQuasiStaticBalanceApproximation(state, input, preComp), true, subproblem.constraints, subproblem.lowerBound,
+                         subproblem.upperBound);
   appendLinearConstraint(problem_.stateInequalityConstraintPtr->getLinearApproximation(time, state, preComp), false, subproblem.constraints,
                          subproblem.lowerBound, subproblem.upperBound);
   appendLinearConstraint(problem_.inequalityConstraintPtr->getLinearApproximation(time, state, input, preComp), false, subproblem.constraints,
@@ -230,6 +236,7 @@ ocs2::PerformanceIndex PoseOptimizer::computePerformance(ocs2::scalar_t time, co
 
   performance.equalityConstraintsSSE += ocs2::getEqConstraintsSSE(problem_.stateEqualityConstraintPtr->getValue(time, state, preComp));
   performance.equalityConstraintsSSE += ocs2::getEqConstraintsSSE(problem_.equalityConstraintPtr->getValue(time, state, input, preComp));
+  performance.equalityConstraintsSSE += ocs2::getEqConstraintsSSE(getQuasiStaticBalance(state, input));
   performance.inequalityConstraintsSSE += ocs2::getIneqConstraintsSSE(problem_.stateInequalityConstraintPtr->getValue(time, state, preComp));
   performance.inequalityConstraintsSSE += ocs2::getIneqConstraintsSSE(problem_.inequalityConstraintPtr->getValue(time, state, input, preComp));
   performance.inequalityLagrangian = settings_.inequalityConstraintMu * performance.inequalityConstraintsSSE;
@@ -251,6 +258,50 @@ ocs2::sqp::Convergence PoseOptimizer::checkConvergence(int iteration, const ocs2
     return Convergence::PRIMAL;
   }
   return Convergence::FALSE;
+}
+
+void PoseOptimizer::zeroVelocityAndAcceleration(ocs2::vector_t& state, ocs2::vector_t& input) const {
+  state.tail(pinocchioInterface_.getModel().nv).setZero();
+  input.tail(stateConverter_.getJointDim()).setZero();
+}
+
+ocs2::VectorFunctionLinearApproximation PoseOptimizer::getQuasiStaticBalanceApproximation(
+    const ocs2::vector_t& state, const ocs2::vector_t& input, const ocs2::PreComputation& preComp) const {
+  ocs2::VectorFunctionLinearApproximation approximation;
+  if (stateConverter_.getBaseVDim() != 6) {
+    approximation.f.resize(0);
+    approximation.dfdx.resize(0, stateConverter_.getStateVariableDim());
+    approximation.dfdu.resize(0, stateConverter_.getInputDim());
+    return approximation;
+  }
+
+  BaseAccelerationLinearApproximation baseApproximation;
+  const auto* ocpPreComputation = dynamic_cast<const OCPPreComputation*>(&preComp);
+  if (ocpPreComputation != nullptr) {
+    baseApproximation = ocpPreComputation->getBaseAccelerationLinearApproximation();
+  } else {
+    ocs2::vector_t q = stateConverter_.getGeneralizedCoordinates(state);
+    ocs2::vector_t v = stateConverter_.getGeneralizedVelocities(state, input);
+    ocs2::vector_t generalizedAccelerations = ocs2::vector_t::Zero(stateConverter_.getTangentDim());
+    generalizedAccelerations.tail(stateConverter_.getJointDim()) = input.tail(stateConverter_.getJointDim());
+    baseApproximation =
+        computeBaseAccelerationLinearApproximation(q, v, generalizedAccelerations, input, pinocchioInterface_, stateConverter_);
+  }
+
+  approximation.f = getQuasiStaticBalance(state, input);
+  approximation.dfdx = ocs2::matrix_t::Zero(6, stateConverter_.getStateVariableDim());
+  approximation.dfdx.leftCols(stateConverter_.getTangentDim()) = baseApproximation.dfdq;
+  approximation.dfdx.block(0, stateConverter_.getTangentDim(), 6, stateConverter_.getTangentDim()) = baseApproximation.dfdv;
+  approximation.dfdu = baseApproximation.dfdu;
+  return approximation;
+}
+
+ocs2::vector_t PoseOptimizer::getQuasiStaticBalance(const ocs2::vector_t& state, const ocs2::vector_t& input) const {
+  if (stateConverter_.getBaseVDim() != 6) {
+    return ocs2::vector_t(0);
+  }
+  StateConverter<ocs2::scalar_t>& stateConverter = const_cast<StateConverter<ocs2::scalar_t>&>(stateConverter_);
+  return computeBaseAcceleration<ocs2::scalar_t>(state, input, pinocchioInterface_, stateConverter);
 }
 
 ocs2::vector_t PoseOptimizer::incrementState(const ocs2::vector_t& state, const ocs2::vector_t& delta, ocs2::scalar_t alpha) const {

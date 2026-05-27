@@ -57,6 +57,11 @@ class PoseOptimizer {
   ocs2::sqp::Convergence checkConvergence(int iteration, const ocs2::PerformanceIndex& baseline,
                                           const ocs2::sqp::StepInfo& stepInfo) const;
 
+  void zeroVelocityAndAcceleration(ocs2::vector_t& state, ocs2::vector_t& input) const;
+  ocs2::VectorFunctionLinearApproximation getQuasiStaticBalanceApproximation(const ocs2::vector_t& state,
+                                                                             const ocs2::vector_t& input,
+                                                                             const ocs2::PreComputation& preComp) const;
+  ocs2::vector_t getQuasiStaticBalance(const ocs2::vector_t& state, const ocs2::vector_t& input) const;
   ocs2::vector_t incrementState(const ocs2::vector_t& state, const ocs2::vector_t& delta, ocs2::scalar_t alpha) const;
   ocs2::vector_t incrementInput(const ocs2::vector_t& input, const ocs2::vector_t& delta, ocs2::scalar_t alpha) const;
   ocs2::matrix_t selectStateRows(const ocs2::matrix_t& dfdx) const;
