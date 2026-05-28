@@ -18,7 +18,7 @@ namespace ocp_constraint {
 
   const pinocchio::SE3 ContactFixConstraintAD::getTargetPose(ocs2::scalar_t time) const {
     pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
-    for (const std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
+    for (const std::pair<ocp_solver::ContactCandidateIndex, pinocchio::SE3> contact : referenceManagerPtr_->getContacts(time)) {
       if (contact.first == getFrameDynamics().getFrameIds()[0]) targetPose = contact.second;
     }
     return targetPose;

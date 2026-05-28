@@ -16,9 +16,9 @@ namespace ocp_solver {
     void setContactSchedule(const ContactSchedule& contactSchedule) { contactSchedule_.setBuffer(contactSchedule); }
     void setContactSchedule(ContactSchedule&& contactSchedule) { contactSchedule_.setBuffer(std::move(contactSchedule)); }
 
-    const std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > getContacts(ocs2::scalar_t time) const;
+    const std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > getContacts(ocs2::scalar_t time) const;
 
-    bool isInContact(ocs2::scalar_t time, pinocchio::FrameIndex index) const;
+    bool isInContact(ocs2::scalar_t time, ContactCandidateIndex index) const;
 
   private:
     void modifyReferences(ocs2::scalar_t initTime, ocs2::scalar_t finalTime, const ocs2::vector_t& initState, ocs2::TargetTrajectories& targetTrajectories,

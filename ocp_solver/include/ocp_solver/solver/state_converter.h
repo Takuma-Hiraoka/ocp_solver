@@ -12,15 +12,15 @@ namespace ocp_solver {
   template <typename SCALAR_T>
     class StateConverter {
   public:
-    StateConverter(size_t joint_dim, const std::vector<std::size_t>& contactCandidateIds, std::unordered_map<std::string, size_t> joint_index_map, size_t base_q_dim=7, size_t base_v_dim=6)
+    StateConverter(size_t joint_dim, const std::vector<ContactCandidateInfoTpl<SCALAR_T>>& contactCandidates, std::unordered_map<std::string, size_t> joint_index_map, size_t base_q_dim=7, size_t base_v_dim=6)
     : joint_dim(joint_dim),
-      contact_num(contactCandidateIds.size()),
+      contact_num(contactCandidates.size()),
       base_q_dim(base_q_dim),
       base_v_dim(base_v_dim),
       state_dim(base_q_dim + base_v_dim + joint_dim*2),
       input_dim(6 * contact_num + joint_dim),
       joint_index_map(joint_index_map),
-      contactCandidateIds(contactCandidateIds){};
+      contactCandidates(contactCandidates){};
     ~StateConverter() = default;
     StateConverter* clone() const { return new StateConverter(*this); }
 
@@ -33,7 +33,13 @@ namespace ocp_solver {
     size_t getJointDim() const { return joint_dim; };
     size_t getContactNum() const { return contact_num; };
     size_t getGenCoordinatesDim() const { return base_q_dim + joint_dim; };
-    std::vector<std::size_t> getContactCandidateIds() const { return contactCandidateIds; }
+    std::vector<ContactCandidateIndex> getContactCandidateIds() const {
+      std::vector<ContactCandidateIndex> ids;
+      ids.reserve(contactCandidates.size());
+      for (const auto& candidate : contactCandidates) ids.push_back(candidate.index);
+      return ids;
+    }
+    const ContactCandidateInfoTpl<SCALAR_T>& getContactCandidate(size_t contactIndex) const { return contactCandidates.at(contactIndex); }
 
     size_t getBaseStartindex() const { return 0; };
     size_t getJointStartindex() const { return base_q_dim; };
@@ -145,7 +151,7 @@ namespace ocp_solver {
       base_q_dim(rhs.base_q_dim),
       base_v_dim(rhs.base_v_dim),
       joint_index_map(rhs.joint_index_map),
-      contactCandidateIds(rhs.contactCandidateIds){};
+      contactCandidates(rhs.contactCandidates){};
   public:
     const size_t joint_dim;
     const size_t contact_num;
@@ -154,7 +160,7 @@ namespace ocp_solver {
     const size_t base_q_dim;
     const size_t base_v_dim;
     const std::unordered_map<std::string, size_t> joint_index_map;
-    std::vector<std::size_t> contactCandidateIds; // state等のwrenchの順番はcontactCandidatesに登録された順
+    std::vector<ContactCandidateInfoTpl<SCALAR_T>> contactCandidates; // state等のwrenchの順番はcontactCandidatesに登録された順
   };
 
 }

@@ -26,18 +26,6 @@ namespace ocp_constraint {
       const size_t tangentDim = stateConverter.getTangentDim();
 
       ocs2::matrix_t derivative = ocs2::matrix_t::Zero(tangentDim, tangentDim);
-      for (size_t column = 0; column < tangentDim; column++) {
-        ocs2::vector_t tangentDirection = ocs2::vector_t::Zero(tangentDim);
-        tangentDirection(column) = 1.0;
-        pinocchio::computeJointJacobiansTimeVariation(model, data, q, tangentDirection);
-
-        for (size_t i = 0; i < stateConverter.contactCandidateIds.size(); i++) {
-          ocs2::matrix_t jacobianDerivative = ocs2::matrix_t::Zero(6, tangentDim);
-          pinocchio::getFrameJacobianTimeVariation(model, data, stateConverter.contactCandidateIds[i],
-                                                   pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, jacobianDerivative);
-          derivative.col(column).noalias() += jacobianDerivative.transpose() * stateConverter.getContactWrench(input, i);
-        }
-      }
       return derivative;
     }
 
@@ -50,10 +38,11 @@ namespace ocp_constraint {
       const size_t tangentDim = stateConverter.getTangentDim();
 
       ocs2::matrix_t derivative = ocs2::matrix_t::Zero(tangentDim, stateConverter.getInputDim());
-      for (size_t i = 0; i < stateConverter.contactCandidateIds.size(); i++) {
+      for (size_t i = 0; i < stateConverter.contactCandidates.size(); i++) {
         ocs2::matrix_t jacobian = ocs2::matrix_t::Zero(6, tangentDim);
-        pinocchio::computeFrameJacobian(model, data, q, stateConverter.contactCandidateIds[i],
-                                        pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, jacobian);
+        pinocchio::computeJointJacobians(model, data, q);
+        ocp_solver::getContactCandidateJacobian(pinocchioInterface, stateConverter.getContactCandidate(i),
+                                                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, jacobian);
         derivative.middleCols<6>(6 * i).noalias() = jacobian.transpose();
       }
       return derivative;

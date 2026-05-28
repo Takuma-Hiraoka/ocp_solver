@@ -9,10 +9,10 @@
 namespace ocp_solver {
   struct ContactSchedule : ocs2::ModeSchedule {
   public:
-    ContactSchedule() : ContactSchedule(std::vector<ocs2::scalar_t>{}, std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > >{{{0, pinocchio::SE3::Identity()}}}) {}
-    ContactSchedule(std::vector<ocs2::scalar_t> eventTimes_, std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > > contactSequence_);
+    ContactSchedule() : ContactSchedule(std::vector<ocs2::scalar_t>{}, std::vector<std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > >{{{0, pinocchio::SE3::Identity()}}}) {}
+    ContactSchedule(std::vector<ocs2::scalar_t> eventTimes_, std::vector<std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > > contactSequence_);
 
-    std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > contactAtTime(ocs2::scalar_t time) const;
+    std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > contactAtTime(ocs2::scalar_t time) const;
 
     void clean () {
       eventTimes.clear();
@@ -21,7 +21,7 @@ namespace ocp_solver {
     }
 
     // std::vector<size_t> modeSequence;  // mode sequence of size N. not used
-    std::vector<std::vector<std::pair<pinocchio::FrameIndex, pinocchio::SE3> > > contactSequence; // [0] size N. corresponding to eventTimes. [1] contact vector. [2] candidate and targetPose
+    std::vector<std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > > contactSequence; // [0] size N. corresponding to eventTimes. [1] contact vector. [2] candidate and targetPose
   };
   void swap(ContactSchedule& lh, ContactSchedule& rh);
 

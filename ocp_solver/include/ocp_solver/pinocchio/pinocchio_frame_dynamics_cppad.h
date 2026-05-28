@@ -92,6 +92,8 @@ namespace ocp_solver {
 
     const std::vector<std::string> frameNames_;
     std::vector<size_t> frameIds_;
+    std::vector<size_t> contactIndices_;
+    std::vector<bool> useContactCandidate_;
 
     ocs2::PinocchioInterfaceCppAd pinocchioInterfaceCppAd_;
     StateConverter<ocs2::ad_scalar_t>* mappingPtr_;

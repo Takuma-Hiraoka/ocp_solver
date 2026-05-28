@@ -5,6 +5,8 @@
 
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 
+#include <stdexcept>
+
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 
@@ -20,7 +22,27 @@ namespace ocp_solver {
 
   : frameNames_(std::move(frameNames)), pinocchioInterfaceCppAd_(pinocchioInterface.toCppAd()), mappingPtr_(&stateConverter) {
     for (const std::string& bodyName : frameNames_) {
-      frameIds_.push_back(pinocchioInterface.getModel().getFrameId(bodyName));
+      const pinocchio::FrameIndex frameId = pinocchioInterface.getModel().getFrameId(bodyName);
+      if (frameId < pinocchioInterface.getModel().frames.size()) {
+        frameIds_.push_back(frameId);
+        contactIndices_.push_back(0);
+        useContactCandidate_.push_back(false);
+        continue;
+      }
+
+      bool foundContactCandidate = false;
+      for (size_t i = 0; i < mappingPtr_->contactCandidates.size(); ++i) {
+        if (mappingPtr_->contactCandidates[i].frameName == bodyName) {
+          frameIds_.push_back(mappingPtr_->contactCandidates[i].index);
+          contactIndices_.push_back(i);
+          useContactCandidate_.push_back(true);
+          foundContactCandidate = true;
+          break;
+        }
+      }
+      if (!foundContactCandidate) {
+        throw std::runtime_error("Frame or contact candidate " + bodyName + " is not contained in Pinocchio model.");
+      }
     }
 
     size_t stateDim = mappingPtr_->getStateDim();
@@ -134,6 +156,8 @@ namespace ocp_solver {
       accelerationsCppAdInterfacePtr_(new ocs2::CppAdInterface(*rhs.accelerationsCppAdInterfacePtr_)),
       frameNames_(rhs.frameNames_),
       frameIds_(rhs.frameIds_),
+      contactIndices_(rhs.contactIndices_),
+      useContactCandidate_(rhs.useContactCandidate_),
       pinocchioInterfaceCppAd_(rhs.pinocchioInterfaceCppAd_),
       mappingPtr_(rhs.mappingPtr_) {}
 
@@ -150,9 +174,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t positions(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      pinocchio::updateFramePlacement(model, data, frameId);
-      positions.segment<3>(3 * i) = data.oMf[frameId].translation();
+      if (useContactCandidate_[i]) {
+        positions.segment<3>(3 * i) =
+          getContactCandidatePlacement(pinocchioInterfaceCppAd_, mappingPtr_->getContactCandidate(contactIndices_[i])).translation();
+      } else {
+        const size_t frameId = frameIds_[i];
+        pinocchio::updateFramePlacement(model, data, frameId);
+        positions.segment<3>(3 * i) = data.oMf[frameId].translation();
+      }
     }
     return positions;
   }
@@ -197,8 +226,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t velocities(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      velocities.segment<3>(3 * i) = pinocchio::getFrameVelocity(model, data, frameId, rf).linear();
+      if (useContactCandidate_[i]) {
+        const auto& contactCandidate = mappingPtr_->getContactCandidate(contactIndices_[i]);
+        velocities.segment<3>(3 * i) =
+          pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex, contactCandidate.localPose, rf).linear();
+      } else {
+        const size_t frameId = frameIds_[i];
+        velocities.segment<3>(3 * i) = pinocchio::getFrameVelocity(model, data, frameId, rf).linear();
+      }
     }
     return velocities;
   }
@@ -258,8 +293,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t orientations(4 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      pinocchio::updateFramePlacement(model, data, frameIds_[i]);
-      orientations.segment<4>(4 * i) = ocs2::matrixToQuaternion(data.oMf[frameIds_[i]].rotation()).coeffs();
+      if (useContactCandidate_[i]) {
+        orientations.segment<4>(4 * i) =
+          ocs2::matrixToQuaternion(
+            getContactCandidatePlacement(pinocchioInterfaceCppAd_, mappingPtr_->getContactCandidate(contactIndices_[i])).rotation()).coeffs();
+      } else {
+        pinocchio::updateFramePlacement(model, data, frameIds_[i]);
+        orientations.segment<4>(4 * i) = ocs2::matrixToQuaternion(data.oMf[frameIds_[i]].rotation()).coeffs();
+      }
     }
     return orientations;
   }
@@ -317,9 +358,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t errors(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      pinocchio::updateFramePlacement(model, data, frameId);
-      const Eigen::Matrix<ocs2::ad_scalar_t, 3, 3> R = data.oMf[frameId].rotation();
+      Eigen::Matrix<ocs2::ad_scalar_t, 3, 3> R;
+      if (useContactCandidate_[i]) {
+        R = getContactCandidatePlacement(pinocchioInterfaceCppAd_, mappingPtr_->getContactCandidate(contactIndices_[i])).rotation();
+      } else {
+        const size_t frameId = frameIds_[i];
+        pinocchio::updateFramePlacement(model, data, frameId);
+        R = data.oMf[frameId].rotation();
+      }
 
       ad_quaternion_t eeReferenceOrientation;
       eeReferenceOrientation.coeffs() = params.segment<4>(model.nq + 4 * i);
@@ -354,8 +400,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t angularVelocities(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      angularVelocities.segment<3>(3 * i) = pinocchio::getFrameVelocity(model, data, frameId, rf).angular();
+      if (useContactCandidate_[i]) {
+        const auto& contactCandidate = mappingPtr_->getContactCandidate(contactIndices_[i]);
+        angularVelocities.segment<3>(3 * i) =
+          pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex, contactCandidate.localPose, rf).angular();
+      } else {
+        const size_t frameId = frameIds_[i];
+        angularVelocities.segment<3>(3 * i) = pinocchio::getFrameVelocity(model, data, frameId, rf).angular();
+      }
     }
     return angularVelocities;
   }
@@ -405,8 +457,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t twists(6 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      pinocchio::MotionTpl<ocs2::ad_scalar_t> motion = pinocchio::getFrameVelocity(model, data, frameId, rf);
+      pinocchio::MotionTpl<ocs2::ad_scalar_t> motion = pinocchio::MotionTpl<ocs2::ad_scalar_t>::Zero();
+      if (useContactCandidate_[i]) {
+        const auto& contactCandidate = mappingPtr_->getContactCandidate(contactIndices_[i]);
+        motion = pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex, contactCandidate.localPose, rf);
+      } else {
+        const size_t frameId = frameIds_[i];
+        motion = pinocchio::getFrameVelocity(model, data, frameId, rf);
+      }
       ocs2::ad_vector_t currTwist(6);
       currTwist.head(3) = motion.linear();
       currTwist.tail(3) = motion.angular();
@@ -461,8 +519,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t accelerations(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      accelerations.segment<3>(3 * i) = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf).linear();
+      if (useContactCandidate_[i]) {
+        const auto& contactCandidate = mappingPtr_->getContactCandidate(contactIndices_[i]);
+        accelerations.segment<3>(3 * i) =
+          pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex, contactCandidate.localPose, rf).linear();
+      } else {
+        const size_t frameId = frameIds_[i];
+        accelerations.segment<3>(3 * i) = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf).linear();
+      }
     }
     return accelerations;
   }
@@ -514,8 +578,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t accelerations(3 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      accelerations.segment<3>(3 * i) = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf).angular();
+      if (useContactCandidate_[i]) {
+        const auto& contactCandidate = mappingPtr_->getContactCandidate(contactIndices_[i]);
+        accelerations.segment<3>(3 * i) =
+          pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex, contactCandidate.localPose, rf).angular();
+      } else {
+        const size_t frameId = frameIds_[i];
+        accelerations.segment<3>(3 * i) = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf).angular();
+      }
     }
     return accelerations;
   }
@@ -567,8 +637,14 @@ namespace ocp_solver {
 
     ocs2::ad_vector_t accelerations(6 * frameIds_.size());
     for (size_t i = 0; i < frameIds_.size(); i++) {
-      const size_t frameId = frameIds_[i];
-      pinocchio::MotionTpl<ocs2::ad_scalar_t> motion = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf);
+      pinocchio::MotionTpl<ocs2::ad_scalar_t> motion = pinocchio::MotionTpl<ocs2::ad_scalar_t>::Zero();
+      if (useContactCandidate_[i]) {
+        const auto& contactCandidate = mappingPtr_->getContactCandidate(contactIndices_[i]);
+        motion = pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex, contactCandidate.localPose, rf);
+      } else {
+        const size_t frameId = frameIds_[i];
+        motion = pinocchio::getFrameClassicalAcceleration(model, data, frameId, rf);
+      }
       ocs2::ad_vector_t currAcceleration(6);
       currAcceleration.head(3) = motion.linear();
       currAcceleration.tail(3) = motion.angular();

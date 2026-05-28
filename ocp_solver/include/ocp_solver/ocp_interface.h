@@ -45,7 +45,8 @@ namespace ocp_solver {
     void initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD=false, const std::vector<ContactCandidate>& contactCandidates=std::vector<ContactCandidate>(), const pinocchio::JointModelComposite& baseJointComposite=pinocchio::JointModelFreeFlyer());
     std::shared_ptr<OcpSqpMpc> createSqpMpc();
     std::unique_ptr<PoseOptimizer> createPoseOptimizer();
-    void addContactFrame(const std::vector<ContactCandidate>& contactCandidates, pinocchio::ModelTpl<double>& model);
+    std::vector<ContactCandidateInfo> createContactCandidateInfo(const std::vector<ContactCandidate>& contactCandidates,
+                                                                 const pinocchio::ModelTpl<double>& model) const;
     void createJointInfo(const std::vector<std::string> fixedJointNames, const pinocchio::JointModelComposite& baseJointComposite, const pinocchio::ModelTpl<double>& model, std::vector<std::string>& jointNames, std::unordered_map<std::string, size_t>& jointIndexMap);
 
     ocs2::PinocchioInterface& getPinocchioInterface() { return *this->pinocchioInterfacePtr_; }

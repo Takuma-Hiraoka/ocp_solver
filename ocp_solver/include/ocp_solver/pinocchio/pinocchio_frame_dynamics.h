@@ -24,6 +24,7 @@ namespace ocp_solver {
     PinocchioFrameDynamics(const ocs2::PinocchioInterface& pinocchioInterface,
                                  StateConverter<ocs2::scalar_t>& stateConverter,
                                  std::string frameName);
+    PinocchioFrameDynamics(StateConverter<ocs2::scalar_t>& stateConverter, size_t contactIndex);
 
     ~PinocchioFrameDynamics() = default;
     PinocchioFrameDynamics* clone() const;
@@ -57,6 +58,8 @@ namespace ocp_solver {
 
     std::string frameName_;
     size_t frameId_;
+    size_t contactIndex_ = 0;
+    bool useContactCandidate_ = false;
 
     StateConverter<ocs2::scalar_t>* stateConverter_;
   };

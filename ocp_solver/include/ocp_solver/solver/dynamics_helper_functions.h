@@ -23,6 +23,25 @@ namespace ocp_solver {
   };
 
   template <typename SCALAR_T>
+  pinocchio::SE3Tpl<SCALAR_T> getContactCandidatePlacement(
+      const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+      const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate);
+
+  template <typename SCALAR_T, typename Matrix6xLike>
+  void getContactCandidateJacobian(
+      const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+      const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<Matrix6xLike>& jacobian);
+
+  template <typename SCALAR_T, typename Matrix6xLike>
+  void getContactCandidateJacobianTimeVariation(
+      const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+      const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<Matrix6xLike>& jacobianTimeVariation);
+
+  template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, 6, 1> computeBaseAcceleration(const Eigen::Matrix<SCALAR_T, -1, 1>& state,
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& input,
                                                         const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
@@ -58,21 +77,21 @@ namespace ocp_solver {
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& state,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& input,
-                                                     ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+                                                     const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                      StateConverter<SCALAR_T>& stateConverter);
 
   template <typename SCALAR_T>
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                            const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                            const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                           const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                           const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, ContactCandidateInfoTpl<SCALAR_T>>>& wrenches,
                                            ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface);
 
   template <typename SCALAR_T>
     Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                               const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                               const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, ContactCandidateInfoTpl<SCALAR_T>>>& wrenches,
                                                ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface);
 
 }

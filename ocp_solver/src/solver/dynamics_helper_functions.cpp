@@ -3,6 +3,7 @@
 #include "ocp_solver/solver/dynamics_helper_functions.h"
 
 #include <ocs2_robotic_tools/common/RotationDerivativesTransforms.h>
+#include <type_traits>
 
 // Pinnochio
 #include <pinocchio/algorithm/contact-dynamics.hpp>
@@ -15,6 +16,103 @@
 #include <pinocchio/multibody/model.hpp>
 
 namespace ocp_solver {
+
+  template <typename SCALAR_T>
+  pinocchio::SE3Tpl<SCALAR_T> getContactCandidatePlacement(
+      const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+      const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate) {
+    return pinInterface.getData().oMi[contactCandidate.parentJointIndex] * contactCandidate.localPose;
+  }
+  template pinocchio::SE3Tpl<ocs2::scalar_t> getContactCandidatePlacement(
+      const ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinInterface,
+      const ContactCandidateInfoTpl<ocs2::scalar_t>& contactCandidate);
+  template pinocchio::SE3Tpl<ocs2::ad_scalar_t> getContactCandidatePlacement(
+      const ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinInterface,
+      const ContactCandidateInfoTpl<ocs2::ad_scalar_t>& contactCandidate);
+
+  template <typename SCALAR_T, typename Matrix6xLike>
+  void getContactCandidateJacobian(
+      const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+      const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<Matrix6xLike>& jacobian) {
+    using DataType = std::remove_const_t<std::remove_reference_t<decltype(pinInterface.getData())>>;
+    auto& data = const_cast<DataType&>(pinInterface.getData());
+    pinocchio::getFrameJacobian(pinInterface.getModel(), data, contactCandidate.parentJointIndex,
+                                contactCandidate.localPose, referenceFrame,
+                                PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, jacobian));
+  }
+  template void getContactCandidateJacobian<ocs2::scalar_t, ocs2::matrix_t>(
+      const ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinInterface,
+      const ContactCandidateInfoTpl<ocs2::scalar_t>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<ocs2::matrix_t>& jacobian);
+  template void getContactCandidateJacobian<ocs2::ad_scalar_t, ocs2::ad_matrix_t>(
+      const ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinInterface,
+      const ContactCandidateInfoTpl<ocs2::ad_scalar_t>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<ocs2::ad_matrix_t>& jacobian);
+
+  template <typename SCALAR_T, typename Matrix6xLike>
+  void getContactCandidateJacobianTimeVariation(
+      const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+      const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<Matrix6xLike>& jacobianTimeVariation) {
+    using DataType = std::remove_const_t<std::remove_reference_t<decltype(pinInterface.getData())>>;
+    using ModelType = std::remove_const_t<std::remove_reference_t<decltype(pinInterface.getModel())>>;
+    using SE3 = typename DataType::SE3;
+    using Vector3 = typename SE3::Vector3;
+    using Motion = typename DataType::Motion;
+
+    const ModelType& model = pinInterface.getModel();
+    auto& data = const_cast<DataType&>(pinInterface.getData());
+    Matrix6xLike& dJ = PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, jacobianTimeVariation);
+
+    const pinocchio::JointIndex jointId = contactCandidate.parentJointIndex;
+    const SE3 oMframe = data.oMi[jointId] * contactCandidate.localPose;
+    pinocchio::details::translateJointJacobian(model, data, jointId, referenceFrame, oMframe, data.dJ, dJ);
+
+    switch (referenceFrame) {
+      case pinocchio::LOCAL: {
+        const Motion& vJoint = data.v[jointId];
+        const Motion vFrame = contactCandidate.localPose.actInv(vJoint);
+        const int colRef = pinocchio::nv(model.joints[jointId]) + pinocchio::idx_v(model.joints[jointId]) - 1;
+        for (Eigen::Index j = colRef; j >= 0; j = data.parents_fromRow[static_cast<size_t>(j)]) {
+          typedef typename DataType::Matrix6x::ColXpr ColXprIn;
+          typedef const pinocchio::MotionRef<ColXprIn> MotionIn;
+          typedef typename Matrix6xLike::ColXpr ColXprOut;
+          typedef pinocchio::MotionRef<ColXprOut> MotionOut;
+          MotionIn vIn(data.J.col(j));
+          MotionOut vOut(dJ.col(j));
+          vOut -= vFrame.cross(oMframe.actInv(vIn));
+        }
+        break;
+      }
+      case pinocchio::LOCAL_WORLD_ALIGNED: {
+        const Motion& ovJoint = data.ov[jointId];
+        const int colRef = pinocchio::nv(model.joints[jointId]) + pinocchio::idx_v(model.joints[jointId]) - 1;
+        for (Eigen::Index j = colRef; j >= 0; j = data.parents_fromRow[static_cast<size_t>(j)]) {
+          typedef typename DataType::Matrix6x::ColXpr ColXprIn;
+          typedef const pinocchio::MotionRef<ColXprIn> MotionIn;
+          typedef typename Matrix6xLike::ColXpr ColXprOut;
+          typedef pinocchio::MotionRef<ColXprOut> MotionOut;
+          MotionIn vIn(data.J.col(j));
+          MotionOut vOut(dJ.col(j));
+          vOut.linear() -= Vector3(ovJoint.linear() + ovJoint.angular().cross(oMframe.translation())).cross(vIn.angular());
+        }
+        break;
+      }
+      case pinocchio::WORLD:
+      default:
+        break;
+    }
+  }
+  template void getContactCandidateJacobianTimeVariation<ocs2::scalar_t, ocs2::matrix_t>(
+      const ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinInterface,
+      const ContactCandidateInfoTpl<ocs2::scalar_t>& contactCandidate,
+      pinocchio::ReferenceFrame referenceFrame,
+      const Eigen::MatrixBase<ocs2::matrix_t>& jacobianTimeVariation);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, 6, 1> computeBaseAcceleration(const Eigen::Matrix<SCALAR_T, -1, -1>& M,
@@ -75,6 +173,7 @@ namespace ocp_solver {
       return approximation;
     }
 
+    pinocchio::forwardKinematics(model, data, q, v, generalizedAccelerations);
     pinocchio::computeRNEADerivatives(model, data, q, v, generalizedAccelerations);
     const ocs2::matrix_t dtau_dq = data.dtau_dq;
     const ocs2::matrix_t dtau_dv = data.dtau_dv;
@@ -87,9 +186,9 @@ namespace ocp_solver {
       tangentDirection(column) = 1.0;
       pinocchio::computeJointJacobiansTimeVariation(model, data, q, tangentDirection);
 
-      for (size_t i = 0; i < stateConverter.contactCandidateIds.size(); ++i) {
+      for (size_t i = 0; i < stateConverter.contactCandidates.size(); ++i) {
         ocs2::matrix_t dJ = ocs2::matrix_t::Zero(6, tangentDim);
-        pinocchio::getFrameJacobianTimeVariation(model, data, stateConverter.contactCandidateIds[i], referenceFrame, dJ);
+        getContactCandidateJacobianTimeVariation(pinocchioInterface, stateConverter.getContactCandidate(i), referenceFrame, dJ);
         externalForcesDerivative.col(column).noalias() += dJ.transpose() * stateConverter.getContactWrench(input, i);
       }
     }
@@ -101,9 +200,9 @@ namespace ocp_solver {
     approximation.dfdv = -MbbSolver.solve(dtau_dv.topRows(baseVDim));
 
     pinocchio::computeJointJacobians(model, data, q);
-    for (size_t i = 0; i < stateConverter.contactCandidateIds.size(); ++i) {
+    for (size_t i = 0; i < stateConverter.contactCandidates.size(); ++i) {
       ocs2::matrix_t J = ocs2::matrix_t::Zero(6, tangentDim);
-      pinocchio::getFrameJacobian(model, data, stateConverter.contactCandidateIds[i], referenceFrame, J);
+      getContactCandidateJacobian(pinocchioInterface, stateConverter.getContactCandidate(i), referenceFrame, J);
       approximation.dfdu.block(0, i * 6, baseVDim, 6) = MbbSolver.solve(J.block(0, 0, 6, baseVDim).transpose());
     }
 
@@ -117,21 +216,24 @@ namespace ocp_solver {
                                                         const Eigen::Matrix<SCALAR_T, -1, 1>& input,
                                                         const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                         StateConverter<SCALAR_T>& stateConverter) {
+    auto& pinInterfaceNonConst = const_cast<ocs2::PinocchioInterfaceTpl<SCALAR_T>&>(pinInterface);
     const pinocchio::ModelTpl<SCALAR_T>& model = pinInterface.getModel();
-    pinocchio::DataTpl<SCALAR_T> data = pinInterface.getData();
+    pinocchio::DataTpl<SCALAR_T>& data = pinInterfaceNonConst.getData();
     const Eigen::Matrix<SCALAR_T, -1, 1> q = stateConverter.getGeneralizedCoordinates(state);
     const Eigen::Matrix<SCALAR_T, -1, 1> qd = stateConverter.getGeneralizedVelocities(state, input);
     const Eigen::Matrix<SCALAR_T, -1, 1> qdd_joints = stateConverter.getJointAccelerations(input);
 
     data.M.fill(SCALAR_T(0.0));
+    pinocchio::forwardKinematics(model, data, q, qd);
     pinocchio::crba(model, data, q);
     pinocchio::nonLinearEffects(model, data, q, qd);
 
     Eigen::Matrix<SCALAR_T, 6, 1> baseExternalForces = Eigen::Matrix<SCALAR_T, 6, 1>::Zero();
 
-    for (int i=0; i<stateConverter.contactCandidateIds.size(); i++) {
+    pinocchio::computeJointJacobians(model, data, q);
+    for (int i=0; i<stateConverter.contactCandidates.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, stateConverter.getTangentDim());
-      pinocchio::computeFrameJacobian(model, data, q, stateConverter.contactCandidateIds[i], pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      getContactCandidateJacobian(pinInterfaceNonConst, stateConverter.getContactCandidate(i), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       Eigen::Matrix<SCALAR_T, 6, 6> J_b = J.block(0, 0, 6, 6);
       baseExternalForces += J_b.transpose() * stateConverter.getContactWrench(input, i);
     }
@@ -197,34 +299,36 @@ namespace ocp_solver {
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& state,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& input,
-                                                     ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
+                                                     const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
                                                      StateConverter<SCALAR_T>& stateConverter) {
     const Eigen::Matrix<SCALAR_T, -1, 1> q = stateConverter.getGeneralizedCoordinates(state);
     const Eigen::Matrix<SCALAR_T, -1, 1> qd = stateConverter.getGeneralizedVelocities(state, input);
     const Eigen::Matrix<SCALAR_T, -1, 1> qdd_joints = stateConverter.getJointAccelerations(input);
 
-    std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>> wrenches(stateConverter.contactCandidateIds.size(), {Eigen::Matrix<SCALAR_T, 6, 1>::Zero(), 0});
+    std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, ContactCandidateInfoTpl<SCALAR_T>>> wrenches(
+      stateConverter.contactCandidates.size(), {Eigen::Matrix<SCALAR_T, 6, 1>::Zero(), ContactCandidateInfoTpl<SCALAR_T>()});
     for (int i=0; i<wrenches.size(); i++) {
       wrenches[i].first = stateConverter.getContactWrench(input, i);
-      wrenches[i].second  = stateConverter.contactCandidateIds[i];
+      wrenches[i].second = stateConverter.getContactCandidate(i);
     }
 
-    return computeJointTorques<SCALAR_T>(q, qd, qdd_joints, wrenches, pinInterface);
+    auto& pinInterfaceNonConst = const_cast<ocs2::PinocchioInterfaceTpl<SCALAR_T>&>(pinInterface);
+    return computeJointTorques<SCALAR_T>(q, qd, qdd_joints, wrenches, pinInterfaceNonConst);
   }
   template ocs2::ad_vector_t computeJointTorques(const ocs2::ad_vector_t& state,
                                                  const ocs2::ad_vector_t& input,
-                                                 ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinInterface,
+                                                 const ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinInterface,
                                                  StateConverter<ocs2::ad_scalar_t>& stateConverter);
   template ocs2::vector_t computeJointTorques(const ocs2::vector_t& state,
                                               const ocs2::vector_t& input,
-                                              ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinInterface,
+                                              const ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinInterface,
                                               StateConverter<ocs2::scalar_t>& stateConverter);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorques(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                      const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                     const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                                     const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, ContactCandidateInfoTpl<SCALAR_T>>>& wrenches,
                                                      ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
     const pinocchio::ModelTpl<SCALAR_T>& model = pinocchioInterface.getModel();
     pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
@@ -237,7 +341,8 @@ namespace ocp_solver {
 
     for (int i=0; i<wrenches.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, n_qd);
-      pinocchio::computeFrameJacobian(model, data, q, wrenches[i].second, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      pinocchio::computeJointJacobians(model, data, q);
+      getContactCandidateJacobian(pinocchioInterface, wrenches[i].second, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       externalForcesInJointSpace += J.transpose() * wrenches[i].first;
     }
 
@@ -258,19 +363,19 @@ namespace ocp_solver {
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorques(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                     const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,
                                                                     const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                                    const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                                                    const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, ContactCandidateInfoTpl<ocs2::scalar_t>>>& wrenches,
                                                                     ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinocchioInterface);
   template Eigen::Matrix<ocs2::ad_scalar_t, -1, 1> computeJointTorques(const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& q,
                                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,
                                                                        const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qdd_joints,
-                                                                       const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                                                       const std::vector<std::pair<Eigen::Matrix<ocs2::ad_scalar_t, 6, 1>, ContactCandidateInfoTpl<ocs2::ad_scalar_t>>>& wrenches,
                                                                        ocs2::PinocchioInterfaceTpl<ocs2::ad_scalar_t>& pinocchioInterface);
 
   template <typename SCALAR_T>
   Eigen::Matrix<SCALAR_T, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<SCALAR_T, -1, 1>& q,
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qd,
                                                          const Eigen::Matrix<SCALAR_T, -1, 1>& qdd_joints,
-                                                         const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                                         const std::vector<std::pair<Eigen::Matrix<SCALAR_T, 6, 1>, ContactCandidateInfoTpl<SCALAR_T>>>& wrenches,
                                                          ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinocchioInterface) {
     const pinocchio::ModelTpl<SCALAR_T>& model = pinocchioInterface.getModel();
     pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
@@ -279,9 +384,9 @@ namespace ocp_solver {
 
     pinocchio::forwardKinematics(model, data, q, qd);
 
-    std::function<void(const pinocchio::FrameIndex&, size_t)> setExternalForce = [&](const pinocchio::FrameIndex& frameIndex, size_t i) {
-                              const pinocchio::JointIndex jointIndex = model.frames[frameIndex].parentJoint;
-                              const Eigen::Matrix<SCALAR_T, 3, 1> translationJointFrameToContactFrame = model.frames[frameIndex].placement.translation();
+    std::function<void(const ContactCandidateInfoTpl<SCALAR_T>&, size_t)> setExternalForce = [&](const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate, size_t i) {
+                              const pinocchio::JointIndex jointIndex = contactCandidate.parentJointIndex;
+                              const Eigen::Matrix<SCALAR_T, 3, 1> translationJointFrameToContactFrame = contactCandidate.localPose.translation();
                               const Eigen::Matrix<SCALAR_T, 3, 3> rotationWorldFrameToJointFrame = data.oMi[jointIndex].rotation().transpose();
                               const Eigen::Matrix<SCALAR_T, 3, 1> contactForce = rotationWorldFrameToJointFrame * wrenches[i].first.head(3);
                               const Eigen::Matrix<SCALAR_T, 3, 1> contactTorque = rotationWorldFrameToJointFrame * wrenches[i].first.tail(3);
@@ -299,7 +404,8 @@ namespace ocp_solver {
 
     for (int i=0; i<wrenches.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, n_qd);
-      pinocchio::computeFrameJacobian(model, data, q, wrenches[i].second, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      pinocchio::computeJointJacobians(model, data, q);
+      getContactCandidateJacobian(pinocchioInterface, wrenches[i].second, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       externalForcesInJointSpace += J.transpose() * wrenches[i].first;
     }
 
@@ -316,7 +422,7 @@ namespace ocp_solver {
   template Eigen::Matrix<ocs2::scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::scalar_t, -1, 1>& q,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qd,
                                                                         const Eigen::Matrix<ocs2::scalar_t, -1, 1>& qdd_joints,
-                                                                        const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, pinocchio::FrameIndex>>& wrenches,
+                                                                        const std::vector<std::pair<Eigen::Matrix<ocs2::scalar_t, 6, 1>, ContactCandidateInfoTpl<ocs2::scalar_t>>>& wrenches,
                                                                         ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinocchioInterface);
   // template Eigen::Matrix<ocs2::ad_scalar_t, -1, 1> computeJointTorquesRNEA(const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& q,
   //                                                                          const Eigen::Matrix<ocs2::ad_scalar_t, -1, 1>& qd,

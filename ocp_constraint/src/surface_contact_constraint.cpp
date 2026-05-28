@@ -1,5 +1,6 @@
 #include "ocp_constraint/surface_contact_constraint.h"
 #include <ocp_solver/solver/ocp_pre_computation.h>
+#include <ocp_solver/solver/dynamics_helper_functions.h>
 #include <ocs2_robotic_tools/common/SkewSymmetricMatrix.h>
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
@@ -46,9 +47,8 @@ namespace ocp_constraint {
                                                     const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
-    const pinocchio::FrameIndex frameId = stateConverterPtr_->getContactCandidateIds()[contactIndex_];
-    pinocchio::updateFramePlacement(pinocchioInterface.getModel(), pinocchioInterface.getData(), frameId);
-    Eigen::Matrix3d R_frame = pinocchioInterface.getData().oMf[frameId].rotation();
+    Eigen::Matrix3d R_frame =
+      ocp_solver::getContactCandidatePlacement(pinocchioInterface, stateConverterPtr_->getContactCandidate(contactIndex_)).rotation();
     Eigen::Matrix<ocs2::scalar_t, 6, 6> R = Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();
     R.block(0,0,3,3) = R_frame.transpose();
     R.block(3,3,3,3) = R_frame.transpose();
@@ -62,9 +62,8 @@ namespace ocp_constraint {
                                                                                            const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
-    const pinocchio::FrameIndex frameId = stateConverterPtr_->getContactCandidateIds()[contactIndex_];
-    pinocchio::updateFramePlacement(pinocchioInterface.getModel(), pinocchioInterface.getData(), frameId);
-    Eigen::Matrix3d R_frame = pinocchioInterface.getData().oMf[frameId].rotation();
+    Eigen::Matrix3d R_frame =
+      ocp_solver::getContactCandidatePlacement(pinocchioInterface, stateConverterPtr_->getContactCandidate(contactIndex_)).rotation();
     Eigen::Matrix<ocs2::scalar_t, 6, 6> R = Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();
     R.block(0,0,3,3) = R_frame.transpose();
     R.block(3,3,3,3) = R_frame.transpose();
@@ -77,8 +76,8 @@ namespace ocp_constraint {
     approx.dfdu.middleCols<6>(6 * contactIndex_) = coef_ * R;
 
     ocs2::matrix_t frameJacobian = ocs2::matrix_t::Zero(6, stateConverterPtr_->getTangentDim());
-    pinocchio::getFrameJacobian(pinocchioInterface.getModel(), pinocchioInterface.getData(), frameId,
-                                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, frameJacobian);
+    ocp_solver::getContactCandidateJacobian(pinocchioInterface, stateConverterPtr_->getContactCandidate(contactIndex_),
+                                            pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, frameJacobian);
 
     Eigen::Matrix<ocs2::scalar_t, 6, 6> localWrenchDerivativeWrtFrameRotation =
       Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();
