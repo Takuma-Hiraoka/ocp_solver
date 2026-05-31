@@ -11,9 +11,14 @@ namespace ocp_solver {
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*optimalControlProblem.preComputationPtr).getPinocchioInterface();
     const pinocchio::Model& model = pinocchioInterface.getModel();
     ocs2::vector_t x_integrated = discretizer(*optimalControlProblem.dynamicsPtr, t, x, u, dt);
-    ocs2::vector_t x_diff(2 * model.nv);
+    ocs2::vector_t x_diff(x_integrated.size() - (model.nq - model.nv));
     x_diff.head(model.nv) = pinocchio::difference(model, x_next.head(model.nq), x_integrated.head(model.nq));
     x_diff.segment(model.nv, model.nv) = x_integrated.segment(model.nq, model.nv) - x_next.segment(model.nq, model.nv);
+    if (x_integrated.size() > model.nq + model.nv) {
+      const Eigen::Index extraStart = model.nq + model.nv;
+      x_diff.tail(x_integrated.size() - extraStart) =
+        x_integrated.tail(x_integrated.size() - extraStart) - x_next.tail(x_integrated.size() - extraStart);
+    }
 
     // Precomputation
     constexpr ocs2::RequestSet request = ocs2::Request::Cost + ocs2::Request::SoftConstraint + ocs2::Request::Constraint;
@@ -43,9 +48,14 @@ namespace ocp_solver {
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*optimalControlProblem.preComputationPtr).getPinocchioInterface();
     const pinocchio::Model& model = pinocchioInterface.getModel();
     ocs2::vector_t x_integrated = optimalControlProblem.dynamicsPtr->computeJumpMap(t, x);
-    ocs2::vector_t x_diff(2 * model.nv);
+    ocs2::vector_t x_diff(x_integrated.size() - (model.nq - model.nv));
     x_diff.head(model.nv) = pinocchio::difference(model, x_next.head(model.nq), x_integrated.head(model.nq));
     x_diff.segment(model.nv, model.nv) = x_integrated.segment(model.nq, model.nv) - x_next.segment(model.nq, model.nv);
+    if (x_integrated.size() > model.nq + model.nv) {
+      const Eigen::Index extraStart = model.nq + model.nv;
+      x_diff.tail(x_integrated.size() - extraStart) =
+        x_integrated.tail(x_integrated.size() - extraStart) - x_next.tail(x_integrated.size() - extraStart);
+    }
 
     return ocs2::computePreJumpMetrics(optimalControlProblem, t, x, std::move(x_diff));
   }

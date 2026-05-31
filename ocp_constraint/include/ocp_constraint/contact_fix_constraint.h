@@ -18,6 +18,14 @@ namespace ocp_constraint {
     bool isActive(ocs2::scalar_t time) const override;
 
     const pinocchio::SE3 getTargetPose(ocs2::scalar_t time) const override;
+    ocs2::vector_t getValue(ocs2::scalar_t time,
+                            const ocs2::vector_t& state,
+                            const ocs2::vector_t& input,
+                            const ocs2::PreComputation& preComp) const override;
+    ocs2::VectorFunctionLinearApproximation getLinearApproximation(ocs2::scalar_t time,
+                                                                   const ocs2::vector_t& state,
+                                                                   const ocs2::vector_t& input,
+                                                                   const ocs2::PreComputation& preComp) const override;
 
   private:
     ContactFixConstraint(const ContactFixConstraint& rhs);

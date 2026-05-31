@@ -28,7 +28,10 @@ namespace ocp_constraint {
                                                                                   const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
 
-    ocs2::VectorFunctionLinearApproximation approximation = ocs2::VectorFunctionLinearApproximation(6, 2*ocpPreComp.getPinocchioInterface().getModel().nv, 0);
+    const auto& model = ocpPreComp.getPinocchioInterface().getModel();
+    const size_t stateVariableDim = state.size() - (model.nq - model.nv);
+    ocs2::VectorFunctionLinearApproximation approximation =
+      ocs2::VectorFunctionLinearApproximation::Zero(6, stateVariableDim, 0);
 
     const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
     const ocs2::VectorFunctionLinearApproximation orientationApprox =

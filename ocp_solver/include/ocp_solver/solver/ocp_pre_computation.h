@@ -20,6 +20,7 @@ namespace ocp_solver {
     const ocs2::vector_t& getGeneralizedCoordinates() const { return q_; }
     const ocs2::vector_t& getGeneralizedVelocities() const { return v_; }
     const ocs2::vector_t& getGeneralizedAccelerations() const { return a_; }
+    const ocs2::vector_t& getState() const { return state_; }
     const ocs2::vector_t& getInput() const { return input_; }
     const BaseAccelerationLinearApproximation& getBaseAccelerationLinearApproximation() const;
 
@@ -33,6 +34,7 @@ namespace ocp_solver {
     ocs2::vector_t q_;
     ocs2::vector_t v_;
     ocs2::vector_t a_;
+    ocs2::vector_t state_;
     ocs2::vector_t input_;
     mutable bool baseAccelerationLinearApproximationValid_ = false;
     mutable BaseAccelerationLinearApproximation baseAccelerationLinearApproximation_;

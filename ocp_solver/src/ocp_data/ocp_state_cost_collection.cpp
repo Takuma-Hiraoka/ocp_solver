@@ -1,6 +1,19 @@
 #include "ocp_solver/ocp_data/ocp_state_cost_collection.h"
 
+#include <algorithm>
+
 namespace ocp_solver {
+  namespace {
+    void addPadded(ocs2::ScalarFunctionQuadraticApproximation& total,
+                   const ocs2::ScalarFunctionQuadraticApproximation& term) {
+      total.f += term.f;
+      total.dfdx.head(std::min(total.dfdx.size(), term.dfdx.size())).noalias() +=
+        term.dfdx.head(std::min(total.dfdx.size(), term.dfdx.size()));
+      const Eigen::Index rows = std::min(total.dfdxx.rows(), term.dfdxx.rows());
+      const Eigen::Index cols = std::min(total.dfdxx.cols(), term.dfdxx.cols());
+      total.dfdxx.topLeftCorner(rows, cols).noalias() += term.dfdxx.topLeftCorner(rows, cols);
+    }
+  }  // namespace
 
   StateCostCollection::StateCostCollection(const size_t& ss)
     : state_variable_dim_(ss) {}
@@ -19,16 +32,12 @@ namespace ocp_solver {
       return ocs2::ScalarFunctionQuadraticApproximation::Zero(state_variable_dim_);
     }
 
-    // Initialize with first active term, accumulate potentially other active terms.
-    ocs2::ScalarFunctionQuadraticApproximation cost = (*firstActive)->getQuadraticApproximation(time, state, targetTrajectories, preComp);
-    std::for_each(std::next(firstActive), terms_.end(), [&](const std::unique_ptr<ocs2::StateCost>& costTerm) {
-                                                          if (costTerm->isActive(time)) {
-                                                            const ocs2::ScalarFunctionQuadraticApproximation costTermApproximation = costTerm->getQuadraticApproximation(time, state, targetTrajectories, preComp);
-                                                            cost.f += costTermApproximation.f;
-                                                            cost.dfdx += costTermApproximation.dfdx;
-                                                            cost.dfdxx += costTermApproximation.dfdxx;
-                                                          }
-                                                        });
+    ocs2::ScalarFunctionQuadraticApproximation cost = ocs2::ScalarFunctionQuadraticApproximation::Zero(state_variable_dim_);
+    std::for_each(firstActive, terms_.end(), [&](const std::unique_ptr<ocs2::StateCost>& costTerm) {
+                                          if (costTerm->isActive(time)) {
+                                            addPadded(cost, costTerm->getQuadraticApproximation(time, state, targetTrajectories, preComp));
+                                          }
+                                        });
 
     // Make sure that input derivatives are empty
     cost.dfdu = ocs2::vector_t();

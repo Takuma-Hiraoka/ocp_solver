@@ -30,6 +30,7 @@ namespace ocp_constraint {
     }
 
     ocs2::matrix_t externalForceDerivativeWrtInput(
+        const ocs2::vector_t& state,
         const ocs2::vector_t& q,
         ocs2::PinocchioInterface& pinocchioInterface,
         const ocp_solver::StateConverter<ocs2::scalar_t>& stateConverter) {
@@ -41,7 +42,7 @@ namespace ocp_constraint {
       for (size_t i = 0; i < stateConverter.contactCandidates.size(); i++) {
         ocs2::matrix_t jacobian = ocs2::matrix_t::Zero(6, tangentDim);
         pinocchio::computeJointJacobians(model, data, q);
-        ocp_solver::getContactCandidateJacobian(pinocchioInterface, stateConverter.getContactCandidate(i),
+        ocp_solver::getContactCandidateJacobian(pinocchioInterface, stateConverter.getContactCandidate(state, i),
                                                 pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, jacobian);
         derivative.middleCols<6>(6 * i).noalias() = jacobian.transpose();
       }
@@ -78,7 +79,7 @@ namespace ocp_constraint {
       const ocs2::matrix_t externalDerivativeQ =
         externalForceDerivativeWrtConfiguration(q, input, pinocchioInterface, stateConverter);
       const ocs2::matrix_t externalDerivativeU =
-        externalForceDerivativeWrtInput(q, pinocchioInterface, stateConverter);
+        externalForceDerivativeWrtInput(state, q, pinocchioInterface, stateConverter);
 
       pinocchio::computeRNEADerivatives(model, data, q, v, qdd);
       ocs2::matrix_t dtaudx = ocs2::matrix_t::Zero(jointDim, stateConverter.getStateVariableDim());

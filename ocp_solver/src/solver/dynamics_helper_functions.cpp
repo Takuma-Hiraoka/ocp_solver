@@ -233,7 +233,7 @@ namespace ocp_solver {
     pinocchio::computeJointJacobians(model, data, q);
     for (int i=0; i<stateConverter.contactCandidates.size(); i++) {
       Eigen::Matrix<SCALAR_T, -1, -1> J = Eigen::Matrix<SCALAR_T, -1, -1>::Zero(6, stateConverter.getTangentDim());
-      getContactCandidateJacobian(pinInterfaceNonConst, stateConverter.getContactCandidate(i), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
+      getContactCandidateJacobian(pinInterfaceNonConst, stateConverter.getContactCandidate(state, i), pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J);
       Eigen::Matrix<SCALAR_T, 6, 6> J_b = J.block(0, 0, 6, 6);
       baseExternalForces += J_b.transpose() * stateConverter.getContactWrench(input, i);
     }
@@ -285,6 +285,11 @@ namespace ocp_solver {
     state_derivative.segment(stateConverter.getBaseVDim(), stateConverter.getJointDim()) = stateConverter.getJointVelocities(state, input);
     state_derivative.segment(stateConverter.getTangentDim(), stateConverter.getTangentDim()) =
       computeGeneralizedAccelerations<SCALAR_T>(state, input, pinInterface, stateConverter);
+    for (size_t i = 0; i < stateConverter.contactCandidates.size(); ++i) {
+      if (!stateConverter.contactCandidates[i].searchContactPoint) continue;
+      state_derivative.template segment<3>(stateConverter.getContactPointLocalPositionVariableStartIndex(i)) =
+        stateConverter.getContactPointLocalVelocity(input, i);
+    }
     return state_derivative;
   }
   template ocs2::ad_vector_t computeStateDerivative(const ocs2::ad_vector_t& state,
@@ -309,7 +314,7 @@ namespace ocp_solver {
       stateConverter.contactCandidates.size(), {Eigen::Matrix<SCALAR_T, 6, 1>::Zero(), ContactCandidateInfoTpl<SCALAR_T>()});
     for (int i=0; i<wrenches.size(); i++) {
       wrenches[i].first = stateConverter.getContactWrench(input, i);
-      wrenches[i].second = stateConverter.getContactCandidate(i);
+      wrenches[i].second = stateConverter.getContactCandidate(state, i);
     }
 
     auto& pinInterfaceNonConst = const_cast<ocs2::PinocchioInterfaceTpl<SCALAR_T>&>(pinInterface);

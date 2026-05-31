@@ -20,7 +20,10 @@ namespace ocp_constraint {
     : StateConstraint(rhs),
       referenceManagerPtr_(rhs.referenceManagerPtr_),
       frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
-      config_(rhs.config_) {}
+      config_(rhs.config_),
+      ignoreTime_(rhs.ignoreTime_),
+      height_(rhs.height_),
+      swingWeight_(rhs.swingWeight_) {}
 
   void SwingPositionConstraint::configure(Config&& config) {
     assert((config.Ax.size() > 0 && config.Ax.rows() == numConstraints_) || config.Ax.size() == 0);
@@ -29,12 +32,7 @@ namespace ocp_constraint {
   }
 
   bool SwingPositionConstraint::isActive(ocs2::scalar_t time) const {
-    bool inContact = referenceManagerPtr_->isInContact(time, frameDynamicsPtr_->getFrameId());
-    if (inContact) return false;
-    std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > nearestContacts = nearestContact(time);
-    if (((nearestContacts[0].first != -1.0) && (time - nearestContacts[0].first) < ignoreTime_) ||
-        ((nearestContacts[1].first != -1.0) && (nearestContacts[1].first - time) < ignoreTime_)) return true;
-    return false;
+    return true;
   }
 
   std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > SwingPositionConstraint::nearestContact(ocs2::scalar_t time) const {
@@ -67,8 +65,18 @@ namespace ocp_constraint {
     ocs2::vector_t f = ocs2::vector_t::Zero(3);
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
+      bool hasContactTarget = false;
+      for (const std::pair<ocp_solver::ContactCandidateIndex, pinocchio::SE3>& contact : referenceManagerPtr_->getContacts(time)) {
+        if (contact.first == frameDynamicsPtr_->getFrameId()) {
+          targetPose = contact.second;
+          hasContactTarget = true;
+          break;
+        }
+      }
       std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > nearestContacts = nearestContact(time);
-      if ((nearestContacts[0].first != -1.0) && (nearestContacts[1].first != -1.0)) {
+      if (hasContactTarget) {
+        // In contact, track the scheduled contact pose directly.
+      } else if ((nearestContacts[0].first != -1.0) && (nearestContacts[1].first != -1.0)) {
         double ratio = (time - nearestContacts[0].first) / (nearestContacts[1].first - nearestContacts[0].first);
         if (ratio < (1.0 / (1.0+swingWeight_+1.0))) { // liftup
           double liftRatio = ratio / (1.0 / (1.0+swingWeight_+1.0));
@@ -93,7 +101,11 @@ namespace ocp_constraint {
       }
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
       Eigen::Matrix<ocs2::scalar_t, 3, 1> xError;
-      xError << frameDynamicsPtr_->getPosition(ocpPreComp) - targetPose.translation();
+      if (frameDynamicsPtr_->usesSearchedContactPoint()) {
+        xError = frameDynamicsPtr_->getSearchedContactPointPosition(ocpPreComp) - targetPose.translation();
+      } else {
+        xError = frameDynamicsPtr_->getPosition(ocpPreComp) - targetPose.translation();
+      }
       f.noalias() += config_.Ax * xError;
     }
     return f;
@@ -103,16 +115,27 @@ namespace ocp_constraint {
                                                                                           const ocs2::vector_t& state,
                                                                                           const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
-     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
-   ocs2::VectorFunctionLinearApproximation linearApproximation =
-      ocs2::VectorFunctionLinearApproximation::Zero(3, 2*pinocchioInterface.getModel().nv, 0);
+    ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
+    const size_t stateVariableDim = state.size() - (pinocchioInterface.getModel().nq - pinocchioInterface.getModel().nv);
+    ocs2::VectorFunctionLinearApproximation linearApproximation =
+      ocs2::VectorFunctionLinearApproximation::Zero(3, stateVariableDim, 0);
 
     // Orientation error gains are ignored for now
     // This is equal with assuming that the bottom 3 rows of Ax are zero.
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
+      bool hasContactTarget = false;
+      for (const std::pair<ocp_solver::ContactCandidateIndex, pinocchio::SE3>& contact : referenceManagerPtr_->getContacts(time)) {
+        if (contact.first == frameDynamicsPtr_->getFrameId()) {
+          targetPose = contact.second;
+          hasContactTarget = true;
+          break;
+        }
+      }
       std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > nearestContacts = nearestContact(time);
-      if ((nearestContacts[0].first != -1.0) && (nearestContacts[1].first != -1.0)) {
+      if (hasContactTarget) {
+        // In contact, track the scheduled contact pose directly.
+      } else if ((nearestContacts[0].first != -1.0) && (nearestContacts[1].first != -1.0)) {
         double ratio = (time - nearestContacts[0].first) / (nearestContacts[1].first - nearestContacts[0].first);
         if (ratio < (1.0 / (1.0+swingWeight_+1.0))) { // liftup
           double liftRatio = ratio / (1.0 / (1.0+swingWeight_+1.0));
@@ -135,7 +158,10 @@ namespace ocp_constraint {
         targetPose = nearestContacts[1].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * downRatio);
       }
-      const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
+      const ocs2::VectorFunctionLinearApproximation positionApprox =
+        frameDynamicsPtr_->usesSearchedContactPoint()
+          ? frameDynamicsPtr_->getSearchedContactPointPositionLinearApproximation(ocpPreComp)
+          : frameDynamicsPtr_->getPositionLinearApproximation(ocpPreComp);
 
       linearApproximation.f.head(3).noalias() += config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
       linearApproximation.dfdx.topRows(3).noalias() += config_.Ax.topLeftCorner(3, 3) * positionApprox.dfdx;

@@ -43,7 +43,7 @@ namespace ocp_constraint {
                                                                    const ocs2::vector_t& input,
                                                                    const ocs2::PreComputation& preComp) const override;
 
-  private:
+  protected:
     std::unique_ptr<ocp_solver::PinocchioFrameDynamics> frameDynamicsPtr_;
     const size_t numConstraints_;
     Config config_;

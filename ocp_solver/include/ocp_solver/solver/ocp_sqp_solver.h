@@ -1,12 +1,19 @@
 #pragma once
 
+#include <functional>
+#include <vector>
+
+#include <Eigen/Core>
 #include <ocs2_sqp/SqpSolver.h>
 #include <ocs2_pinocchio_interface/PinocchioInterface.h>
 
 namespace ocp_solver {
   class OcpSqpSolver : public ocs2::SqpSolver {
   public:
+    using StateProjection = std::function<void(ocs2::vector_t&)>;
+
     OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer);
+    void addStateProjection(StateProjection projection);
   private:
     void runImpl(ocs2::scalar_t initTime, const ocs2::vector_t& initState, ocs2::scalar_t finalTime) override;
 
@@ -19,5 +26,7 @@ namespace ocp_solver {
     ocs2::sqp::StepInfo takeStep(const ocs2::PerformanceIndex& baseline, const std::vector<ocs2::AnnotatedTime>& timeDiscretization, const ocs2::vector_t& initState,
                                  const ocs2::SqpSolver::OcpSubproblemSolution& subproblemSolution, ocs2::vector_array_t& x, ocs2::vector_array_t& u,
                                  std::vector<ocs2::Metrics>& metrics);
+
+    std::vector<StateProjection> stateProjections_;
   };
 }

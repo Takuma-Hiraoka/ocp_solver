@@ -10,6 +10,7 @@ namespace ocp_solver {
     std::string frameName;
     std::string parentJointName;
     pinocchio::SE3 localPose;
+    bool searchContactPoint = false;
   };
 
   template <typename SCALAR_T>
@@ -18,7 +19,11 @@ namespace ocp_solver {
     ContactCandidateIndex index = 0;
     std::string frameName;
     pinocchio::JointIndex parentJointIndex = 0;
+    pinocchio::SE3Tpl<SCALAR_T> localFramePose = pinocchio::SE3Tpl<SCALAR_T>::Identity();
+    pinocchio::SE3Tpl<SCALAR_T> localPoseInLocalFrame = pinocchio::SE3Tpl<SCALAR_T>::Identity();
     pinocchio::SE3Tpl<SCALAR_T> localPose = pinocchio::SE3Tpl<SCALAR_T>::Identity();
+    bool searchContactPoint = false;
+    size_t contactPointStateIndex = 0;
   };
 
   using ContactCandidateInfo = ContactCandidateInfoTpl<double>;

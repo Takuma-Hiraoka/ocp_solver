@@ -64,8 +64,9 @@ namespace ocp_constraint {
                                                                                      const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
+    const size_t stateVariableDim = state.size() - (pinocchioInterface.getModel().nq - pinocchioInterface.getModel().nv);
     ocs2::VectorFunctionLinearApproximation linearApproximation =
-      ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), 2*pinocchioInterface.getModel().nv, input.size());
+      ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), stateVariableDim, input.size());
 
 
     if (config_.Ax.size() > 0) {

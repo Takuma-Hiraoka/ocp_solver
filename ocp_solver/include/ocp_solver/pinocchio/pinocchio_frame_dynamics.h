@@ -32,8 +32,12 @@ namespace ocp_solver {
 
     const std::string& getId() const { return frameName_; };
     const std::size_t& getFrameId() const { return frameId_; };
+    bool usesSearchedContactPoint() const {
+      return useContactCandidate_ && stateConverter_->getContactCandidate(contactIndex_).searchContactPoint;
+    }
 
     ocs2::vector_t getPosition(const OCPPreComputation& preComputation) const;
+    ocs2::vector_t getSearchedContactPointPosition(const OCPPreComputation& preComputation) const;
     ocs2::vector_t getVelocity(const OCPPreComputation& preComputation) const;
 
     quaternion_t getOrientation(const OCPPreComputation& preComputation) const;
@@ -45,6 +49,7 @@ namespace ocp_solver {
     ocs2::vector_t getAccelerations(const OCPPreComputation& preComputation) const;
 
     ocs2::VectorFunctionLinearApproximation getPositionLinearApproximation(const OCPPreComputation& preComputation) const;
+    ocs2::VectorFunctionLinearApproximation getSearchedContactPointPositionLinearApproximation(const OCPPreComputation& preComputation) const;
     ocs2::VectorFunctionLinearApproximation getVelocityLinearApproximation(const OCPPreComputation& preComputation) const;
     ocs2::VectorFunctionLinearApproximation getOrientationErrorLinearApproximation(const OCPPreComputation& preComputation, const quaternion_t& referenceOrientation) const;
     ocs2::VectorFunctionLinearApproximation getAngularVelocityLinearApproximation(const OCPPreComputation& preComputation) const;

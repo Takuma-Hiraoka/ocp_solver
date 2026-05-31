@@ -27,6 +27,10 @@ namespace ocp_solver {
     ocs2::vector_t tmp = x;
     tmp.head(model.nq) = pinocchio::integrate(model, x.head(model.nq), dt * dx.head(model.nv));
     tmp.segment(model.nq, model.nv) = x.segment(model.nq, model.nv) + dt * dx.segment(model.nv, model.nv);
+    if (x.size() > model.nq + model.nv) {
+      const Eigen::Index extraStart = model.nq + model.nv;
+      tmp.tail(x.size() - extraStart) = x.tail(x.size() - extraStart) + dt * dx.tail(x.size() - extraStart);
+    }
     return tmp;
   }
 
@@ -120,6 +124,11 @@ namespace ocp_solver {
     continuousApproximation.f = x;
     continuousApproximation.f.head(model.nq) = pinocchio::integrate(model, x.head(model.nq), dt * df.head(model.nv));
     continuousApproximation.f.segment(model.nq, model.nv) = x.segment(model.nq, model.nv) + dt * df.segment(model.nv, model.nv);
+    if (x.size() > model.nq + model.nv) {
+      const Eigen::Index extraStart = model.nq + model.nv;
+      continuousApproximation.f.tail(x.size() - extraStart) =
+        x.tail(x.size() - extraStart) + dt * df.tail(x.size() - extraStart);
+    }
 
     return continuousApproximation;
   }

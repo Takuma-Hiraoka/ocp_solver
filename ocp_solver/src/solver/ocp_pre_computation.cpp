@@ -25,6 +25,7 @@ namespace ocp_solver {
       q_(rhs.q_),
       v_(rhs.v_),
       a_(rhs.a_),
+      state_(rhs.state_),
       input_(rhs.input_),
       baseAccelerationLinearApproximationValid_(rhs.baseAccelerationLinearApproximationValid_),
       baseAccelerationLinearApproximation_(rhs.baseAccelerationLinearApproximation_) {}
@@ -61,6 +62,7 @@ namespace ocp_solver {
     }
 
     StateConverter<ocs2::scalar_t>& sc = const_cast<StateConverter<ocs2::scalar_t>&>(*stateConverterPtr_);
+    state_ = x;
     q_ = stateConverterPtr_->getGeneralizedCoordinates(x);
     v_ = stateConverterPtr_->getGeneralizedVelocities(x, u);
     a_ = computeGeneralizedAccelerations(x, u, pinocchioInterface_, sc);

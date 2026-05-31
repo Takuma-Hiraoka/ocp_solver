@@ -5,6 +5,7 @@
 #include <ocs2_oc/multiple_shooting/Transcription.h>
 #include <ocs2_oc/oc_problem/OcpSize.h>
 #include <ocs2_oc/trajectory_adjustment/TrajectorySpreadingHelperFunctions.h>
+#include <algorithm>
 #include "ocp_solver/solver/ocp_sqp_solver.h"
 #include "ocp_solver/solver/ocp_pre_computation.h"
 #include "ocp_solver/solver/ocp_transcription.h"
@@ -13,11 +14,30 @@
 #include "ocp_solver/solver/system_dynamics.h"
 
 namespace ocp_solver {
+  namespace {
+    void addDynamicsViolation(ocs2::vector_t& target, const ocs2::vector_t& value) {
+      if (target.size() == 0) {
+        target = value;
+      } else if (target.size() == value.size()) {
+        target += value;
+      } else {
+        ocs2::vector_t resized = ocs2::vector_t::Zero(value.size());
+        resized.head(std::min(target.size(), value.size())) = target.head(std::min(target.size(), value.size()));
+        resized += value;
+        target = std::move(resized);
+      }
+    }
+  }  // namespace
+
   // use pinocchio::diference
   OcpSqpSolver::OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer)
     : SqpSolver(settings, optimalControlProblem, initializer) {
     discretizer_ = ocp_solver::selectDynamicsDiscretization(settings_.integratorType);
     sensitivityDiscretizer_ = ocp_solver::selectDynamicsSensitivityDiscretization(settings_.integratorType);
+  }
+
+  void OcpSqpSolver::addStateProjection(StateProjection projection) {
+    stateProjections_.push_back(std::move(projection));
   }
 
 
@@ -46,6 +66,11 @@ namespace ocp_solver {
     // Initialize the state and input
     ocs2::vector_array_t x, u;
     ocs2::multiple_shooting::initializeStateInputTrajectories(initState, timeDiscretization, primalSolution_, *initializerPtr_, x, u);
+    for (ocs2::vector_t& state : x) {
+      for (const StateProjection& projection : stateProjections_) {
+        projection(state);
+      }
+    }
 
     // Bookkeeping
     performanceIndeces_.clear();
@@ -68,9 +93,13 @@ namespace ocp_solver {
       // use pinocchioInterface
       ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
       const pinocchio::Model& model = pinocchioInterface.getModel();
-      ocs2::vector_t delta_x0(2 * model.nv);
+      ocs2::vector_t delta_x0(initState.size() - (model.nq - model.nv));
       delta_x0.head(model.nv) = pinocchio::difference(model, x[0].head(model.nq), initState.head(model.nq));
       delta_x0.segment(model.nv, model.nv) = initState.segment(model.nq, model.nv) - x[0].segment(model.nq, model.nv);
+      if (initState.size() > model.nq + model.nv) {
+        const Eigen::Index extraStart = model.nq + model.nv;
+        delta_x0.tail(initState.size() - extraStart) = initState.tail(initState.size() - extraStart) - x[0].tail(initState.size() - extraStart);
+      }
 
       const ocs2::SqpSolver::OcpSubproblemSolution deltaSolution = getOCPSolution(delta_x0);
       extractValueFunction(timeDiscretization, x);
@@ -196,11 +225,15 @@ namespace ocp_solver {
     // use pinocchioInterface
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
     const pinocchio::Model& model = pinocchioInterface.getModel();
-    ocs2::vector_t initDynamicsViolation(2 * model.nv);
+    ocs2::vector_t initDynamicsViolation(initState.size() - (model.nq - model.nv));
     initDynamicsViolation.head(model.nv) = pinocchio::difference(model, x[0].head(model.nq), initState.head(model.nq));
     initDynamicsViolation.segment(model.nv, model.nv) = initState.segment(model.nq, model.nv) - x[0].segment(model.nq, model.nv);
+    if (initState.size() > model.nq + model.nv) {
+      const Eigen::Index extraStart = model.nq + model.nv;
+      initDynamicsViolation.tail(initState.size() - extraStart) = initState.tail(initState.size() - extraStart) - x[0].tail(initState.size() - extraStart);
+    }
 
-    metrics.front().dynamicsViolation += initDynamicsViolation;
+    addDynamicsViolation(metrics.front().dynamicsViolation, initDynamicsViolation);
     performance.front().dynamicsViolationSSE += initDynamicsViolation.squaredNorm();
 
     // Sum performance of the threads
@@ -250,10 +283,14 @@ namespace ocp_solver {
     // Account for initial state in performance
     ocs2::PinocchioInterface& pinocchioInterface = static_cast<const ocp_solver::OCPPreComputation&>(*(ocpDefinitions_[0].preComputationPtr)).getPinocchioInterface();
     const pinocchio::Model& model = pinocchioInterface.getModel();
-    ocs2::vector_t initDynamicsViolation(2 * model.nv);
+    ocs2::vector_t initDynamicsViolation(initState.size() - (model.nq - model.nv));
     initDynamicsViolation.head(model.nv) = pinocchio::difference(model, x[0].head(model.nq), initState.head(model.nq));
     initDynamicsViolation.segment(model.nv, model.nv) = initState.segment(model.nq, model.nv) - x[0].segment(model.nq, model.nv);
-    metrics.front().dynamicsViolation += initDynamicsViolation;
+    if (initState.size() > model.nq + model.nv) {
+      const Eigen::Index extraStart = model.nq + model.nv;
+      initDynamicsViolation.tail(initState.size() - extraStart) = initState.tail(initState.size() - extraStart) - x[0].tail(initState.size() - extraStart);
+    }
+    addDynamicsViolation(metrics.front().dynamicsViolation, initDynamicsViolation);
     performance.front().dynamicsViolationSSE += initDynamicsViolation.squaredNorm();
 
     // Sum performance of the threads
@@ -270,6 +307,13 @@ namespace ocp_solver {
       vNew[i].resize(v[i].size());
       vNew[i].head(model.nq) = pinocchio::integrate(model, v[i].head(model.nq), alpha * dv[i].head(model.nv));
       vNew[i].segment(model.nq, model.nv) = v[i].segment(model.nq, model.nv) + alpha * dv[i].segment(model.nv, model.nv);
+      if (v[i].size() > model.nq + model.nv) {
+        const Eigen::Index extraStart = model.nq + model.nv;
+        vNew[i].tail(v[i].size() - extraStart) = v[i].tail(v[i].size() - extraStart) + alpha * dv[i].tail(v[i].size() - extraStart);
+      }
+      for (const StateProjection& projection : stateProjections_) {
+        projection(vNew[i]);
+      }
     }
   }
 

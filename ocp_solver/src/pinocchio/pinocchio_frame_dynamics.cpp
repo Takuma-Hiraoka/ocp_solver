@@ -130,10 +130,20 @@ namespace ocp_solver {
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
-      return getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_)).translation();
+      return getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_)).translation();
     }
     pinocchio::updateFramePlacement(model, data, frameId_);
     return pinocchioInterface.getData().oMf[frameId_].translation();
+  }
+
+  ocs2::vector_t PinocchioFrameDynamics::getSearchedContactPointPosition(const OCPPreComputation& preComputation) const {
+    if (!usesSearchedContactPoint()) {
+      return getPosition(preComputation);
+    }
+
+    ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+    const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
+    return getContactCandidatePlacement(pinocchioInterface, contactCandidate).translation();
   }
 
   ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getPositionLinearApproximation(const OCPPreComputation& preComputation) const {
@@ -143,7 +153,7 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface.getData();
     ocs2::VectorFunctionLinearApproximation position;
     if (useContactCandidate_) {
-      position.f = getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_)).translation();
+      position.f = getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_)).translation();
     }
     else {
       pinocchio::updateFramePlacement(model, data, frameId_);
@@ -152,12 +162,41 @@ namespace ocp_solver {
 
     ocs2::matrix_t J = ocs2::matrix_t::Zero(6, model.nv);
     if (useContactCandidate_) {
-      getContactCandidateJacobian(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_), rf, J);
+      getContactCandidateJacobian(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_), rf, J);
     } else {
       pinocchio::getFrameJacobian(model, data, frameId_, rf, J);
     }
     position.dfdx.setZero(3, stateConverter_->getStateVariableDim());
     position.dfdx.leftCols(stateConverter_->getTangentDim()) = J.topRows(3);
+    if (useContactCandidate_ && stateConverter_->getContactCandidate(contactIndex_).searchContactPoint) {
+      const auto& candidate = stateConverter_->getContactCandidate(contactIndex_);
+      position.dfdx.block<3, 3>(0, stateConverter_->getContactPointLocalPositionVariableStartIndex(contactIndex_)) =
+        pinocchioInterface.getData().oMi[candidate.parentJointIndex].rotation() * candidate.localFramePose.rotation();
+    }
+    return position;
+  }
+
+  ocs2::VectorFunctionLinearApproximation PinocchioFrameDynamics::getSearchedContactPointPositionLinearApproximation(
+      const OCPPreComputation& preComputation) const {
+    if (!usesSearchedContactPoint()) {
+      return getPositionLinearApproximation(preComputation);
+    }
+
+    ocs2::PinocchioInterface& pinocchioInterface = preComputation.getPinocchioInterface();
+    const pinocchio::ReferenceFrame rf = pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED;
+    const pinocchio::Model& model = pinocchioInterface.getModel();
+    pinocchio::Data& data = pinocchioInterface.getData();
+    const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
+
+    ocs2::VectorFunctionLinearApproximation position;
+    position.f = getContactCandidatePlacement(pinocchioInterface, contactCandidate).translation();
+    position.dfdx.setZero(3, stateConverter_->getStateVariableDim());
+
+    ocs2::matrix_t J = ocs2::matrix_t::Zero(6, model.nv);
+    getContactCandidateJacobian(pinocchioInterface, contactCandidate, rf, J);
+    position.dfdx.leftCols(stateConverter_->getTangentDim()) = J.topRows(3);
+    position.dfdx.block<3, 3>(0, stateConverter_->getContactPointLocalPositionVariableStartIndex(contactIndex_)) =
+      data.oMi[contactCandidate.parentJointIndex].rotation() * contactCandidate.localFramePose.rotation();
     return position;
   }
 
@@ -167,8 +206,9 @@ namespace ocp_solver {
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
-      return pinocchio::getFrameVelocity(model, data, stateConverter_->getContactCandidate(contactIndex_).parentJointIndex,
-                                         stateConverter_->getContactCandidate(contactIndex_).localPose, rf).linear();
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
+      return pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex,
+                                         contactCandidate.localPose, rf).linear();
     }
     return pinocchio::getFrameVelocity(model, data, frameId_, rf).linear();
   }
@@ -180,10 +220,10 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
       const pinocchio::Motion frameVel =
-        pinocchio::getFrameVelocity(model, data, stateConverter_->getContactCandidate(contactIndex_).parentJointIndex,
-                                    stateConverter_->getContactCandidate(contactIndex_).localPose, rf);
+        pinocchio::getFrameVelocity(model, data, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_).parentJointIndex,
+                                    stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_).localPose, rf);
       ocs2::matrix_t J = ocs2::matrix_t::Zero(6, model.nv);
-      getContactCandidateJacobian(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_), rf, J);
+      getContactCandidateJacobian(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_), rf, J);
       ocs2::VectorFunctionLinearApproximation vel;
       vel.f = frameVel.linear();
       vel.dfdx.setZero(3, stateConverter_->getStateVariableDim());
@@ -214,7 +254,7 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
       return ocs2::matrixToQuaternion(
-        getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_)).rotation());
+        getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_)).rotation());
     }
     pinocchio::updateFramePlacement(model, data, frameId_);
     return ocs2::matrixToQuaternion(pinocchioInterface.getData().oMf[frameId_].rotation());
@@ -226,7 +266,7 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
       return pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() *
-                             getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_)).rotation());
+                             getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_)).rotation());
     }
     pinocchio::updateFramePlacement(model, data, frameId_);
     return pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * pinocchioInterface.getData().oMf[frameId_].rotation());
@@ -240,7 +280,7 @@ namespace ocp_solver {
 
     ocs2::VectorFunctionLinearApproximation error;
     const Eigen::Matrix3d frameRotation = useContactCandidate_
-      ? getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_)).rotation()
+      ? getContactCandidatePlacement(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_)).rotation()
       : [&]() {
           pinocchio::updateFramePlacement(model, data, frameId_);
           return data.oMf[frameId_].rotation();
@@ -248,7 +288,7 @@ namespace ocp_solver {
     error.f = pinocchio::log3(referenceOrientation.toRotationMatrix().transpose() * frameRotation);
     ocs2::matrix_t J = ocs2::matrix_t::Zero(6, model.nv);
     if (useContactCandidate_) {
-      getContactCandidateJacobian(pinocchioInterface, stateConverter_->getContactCandidate(contactIndex_), rf, J);
+      getContactCandidateJacobian(pinocchioInterface, stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_), rf, J);
     } else {
       pinocchio::getFrameJacobian(model, data, frameId_, rf, J);
     }
@@ -265,8 +305,9 @@ namespace ocp_solver {
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
-      return pinocchio::getFrameVelocity(model, data, stateConverter_->getContactCandidate(contactIndex_).parentJointIndex,
-                                         stateConverter_->getContactCandidate(contactIndex_).localPose, rf).angular();
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
+      return pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex,
+                                         contactCandidate.localPose, rf).angular();
     }
     return pinocchio::getFrameVelocity(model, data, frameId_, rf).angular();
   }
@@ -281,7 +322,7 @@ namespace ocp_solver {
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
     pinocchio::Motion frameVel;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       pinocchio::getFrameVelocityDerivatives(model, data, contactCandidate.parentJointIndex,
                                              contactCandidate.localPose, rf, v_partial_dq, v_partial_dv);
       frameVel = pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex,
@@ -306,7 +347,7 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface.getData();
     pinocchio::Motion frameVelocity;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       frameVelocity = pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex,
                                                   contactCandidate.localPose, rf);
     } else {
@@ -327,7 +368,7 @@ namespace ocp_solver {
     ocs2::matrix_t v_partial_dv = ocs2::matrix_t::Zero(6, model.nv);
     pinocchio::Motion frameVel;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       pinocchio::getFrameVelocityDerivatives(model, data, contactCandidate.parentJointIndex,
                                              contactCandidate.localPose, rf, v_partial_dq, v_partial_dv);
       frameVel = pinocchio::getFrameVelocity(model, data, contactCandidate.parentJointIndex,
@@ -358,7 +399,7 @@ namespace ocp_solver {
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       return pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex,
                                                       contactCandidate.localPose, rf).linear();
     }
@@ -374,7 +415,7 @@ namespace ocp_solver {
     ocs2::VectorFunctionLinearApproximation acceleration;
     FrameClassicalAccelerationDerivatives derivatives;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex,
                                                                 contactCandidate.localPose, rf).linear();
       derivatives = computeFrameClassicalAccelerationDerivatives(model, data, contactCandidate.parentJointIndex,
@@ -401,7 +442,7 @@ namespace ocp_solver {
     const pinocchio::Model& model = pinocchioInterface.getModel();
     pinocchio::Data& data = pinocchioInterface.getData();
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       return pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex,
                                                       contactCandidate.localPose, rf).angular();
     }
@@ -417,7 +458,7 @@ namespace ocp_solver {
     ocs2::VectorFunctionLinearApproximation acceleration;
     FrameClassicalAccelerationDerivatives derivatives;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       acceleration.f = pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex,
                                                                 contactCandidate.localPose, rf).angular();
       derivatives = computeFrameClassicalAccelerationDerivatives(model, data, contactCandidate.parentJointIndex,
@@ -446,7 +487,7 @@ namespace ocp_solver {
     pinocchio::Data& data = pinocchioInterface.getData();
     pinocchio::Motion frameAcceleration;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       frameAcceleration = pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex,
                                                                    contactCandidate.localPose, rf);
     } else {
@@ -468,7 +509,7 @@ namespace ocp_solver {
     vector6_t acceleration_f;
     FrameClassicalAccelerationDerivatives derivatives;
     if (useContactCandidate_) {
-      const auto& contactCandidate = stateConverter_->getContactCandidate(contactIndex_);
+      const auto contactCandidate = stateConverter_->getContactCandidate(preComputation.getState(), contactIndex_);
       const pinocchio::Motion frameAcceleration =
         pinocchio::getFrameClassicalAcceleration(model, data, contactCandidate.parentJointIndex,
                                                  contactCandidate.localPose, rf);

@@ -7,6 +7,8 @@
 #include "ocp_solver/common/zero_wrench_constraint.h"
 #include "ocp_solver/ocp_data/ocp_optimal_control_problem.h"
 
+#include <stdexcept>
+
 namespace ocp_solver {
   void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
@@ -31,9 +33,17 @@ namespace ocp_solver {
         candidateAD.index = candidate.index;
         candidateAD.frameName = candidate.frameName;
         candidateAD.parentJointIndex = candidate.parentJointIndex;
+        candidateAD.localFramePose = pinocchio::SE3Tpl<ocs2::ad_scalar_t>(
+          candidate.localFramePose.rotation().cast<ocs2::ad_scalar_t>(),
+          candidate.localFramePose.translation().cast<ocs2::ad_scalar_t>());
+        candidateAD.localPoseInLocalFrame = pinocchio::SE3Tpl<ocs2::ad_scalar_t>(
+          candidate.localPoseInLocalFrame.rotation().cast<ocs2::ad_scalar_t>(),
+          candidate.localPoseInLocalFrame.translation().cast<ocs2::ad_scalar_t>());
         candidateAD.localPose = pinocchio::SE3Tpl<ocs2::ad_scalar_t>(
           candidate.localPose.rotation().cast<ocs2::ad_scalar_t>(),
           candidate.localPose.translation().cast<ocs2::ad_scalar_t>());
+        candidateAD.searchContactPoint = candidate.searchContactPoint;
+        candidateAD.contactPointStateIndex = candidate.contactPointStateIndex;
         contactCandidateInfoAD.push_back(candidateAD);
       }
       stateConverterADPtr_.reset(new StateConverter<ocs2::ad_scalar_t>(jointNames.size(), contactCandidateInfoAD, jointIndexMap, baseJointComposite.nq(), baseJointComposite.nv()));
@@ -73,12 +83,34 @@ namespace ocp_solver {
                                                                              const pinocchio::ModelTpl<double>& model) const {
     std::vector<ContactCandidateInfo> contactCandidateInfo;
     contactCandidateInfo.reserve(contactCandidates.size());
+    size_t contactPointStateIndex = 0;
     for (size_t i = 0; i < contactCandidates.size(); ++i) {
       ContactCandidateInfo candidateInfo;
       candidateInfo.index = i;
       candidateInfo.frameName = contactCandidates[i].frameName;
-      candidateInfo.parentJointIndex = model.getJointId(contactCandidates[i].parentJointName);
-      candidateInfo.localPose = contactCandidates[i].localPose;
+      const pinocchio::JointIndex jointIndex = model.getJointId(contactCandidates[i].parentJointName);
+      if (jointIndex < static_cast<pinocchio::JointIndex>(model.njoints)
+          && model.names[jointIndex] == contactCandidates[i].parentJointName) {
+        candidateInfo.parentJointIndex = jointIndex;
+        candidateInfo.localFramePose = pinocchio::SE3::Identity();
+        candidateInfo.localPoseInLocalFrame = contactCandidates[i].localPose;
+        candidateInfo.localPose = contactCandidates[i].localPose;
+      } else {
+        const pinocchio::FrameIndex frameIndex = model.getFrameId(contactCandidates[i].parentJointName);
+        if (frameIndex >= model.frames.size()) {
+          throw std::runtime_error("Contact candidate parent joint or frame not found: "
+                                   + contactCandidates[i].parentJointName);
+        }
+        const pinocchio::Frame& frame = model.frames[frameIndex];
+        candidateInfo.parentJointIndex = frame.parentJoint;
+        candidateInfo.localFramePose = frame.placement;
+        candidateInfo.localPoseInLocalFrame = contactCandidates[i].localPose;
+        candidateInfo.localPose = frame.placement * contactCandidates[i].localPose;
+      }
+      candidateInfo.searchContactPoint = contactCandidates[i].searchContactPoint;
+      if (candidateInfo.searchContactPoint) {
+        candidateInfo.contactPointStateIndex = contactPointStateIndex++;
+      }
       contactCandidateInfo.push_back(candidateInfo);
     }
     return contactCandidateInfo;

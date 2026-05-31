@@ -8,10 +8,15 @@ namespace ocp_solver {
       model_(pinocchioInterface.getModel()) {};
 
   ocs2::vector_t QuadraticStateCost::getStateDeviation(ocs2::scalar_t time, const ocs2::vector_t& state, const ocs2::TargetTrajectories& targetTrajectories) const {
-    ocs2::vector_t stateDerivation(2*model_.nv);
+    const ocs2::vector_t& targetState = targetTrajectories.getDesiredState(time);
+    ocs2::vector_t stateDerivation(state.size() - (model_.nq - model_.nv));
     stateDerivation.head(model_.nv) = pinocchio::difference(model_, targetTrajectories.getDesiredState(time).head(model_.nq), state.head(model_.nq));
     stateDerivation.segment(model_.nv, model_.nv) =
       state.segment(model_.nq, model_.nv) - targetTrajectories.getDesiredState(time).segment(model_.nq, model_.nv);
+    if (state.size() > model_.nq + model_.nv) {
+      const Eigen::Index extraStart = model_.nq + model_.nv;
+      stateDerivation.tail(state.size() - extraStart) = state.tail(state.size() - extraStart) - targetState.tail(state.size() - extraStart);
+    }
     return stateDerivation;
   }
 }

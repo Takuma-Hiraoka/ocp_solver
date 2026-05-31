@@ -32,6 +32,11 @@ namespace ocp_solver {
     approximation.dfdu.setZero(stateConverter_.getStateVariableDim(), u.rows());
     approximation.dfdu.block(tangentDim + stateConverter_.getBaseVDim(), stateConverter_.getJointAccelerationsStartindex(), jointDim, jointDim) =
       ocs2::matrix_t::Identity(jointDim, jointDim);
+    for (size_t i = 0; i < stateConverter_.contactCandidates.size(); ++i) {
+      if (!stateConverter_.contactCandidates[i].searchContactPoint) continue;
+      approximation.dfdu.block(stateConverter_.getContactPointLocalPositionVariableStartIndex(i),
+                               stateConverter_.getContactPointLocalVelocityStartIndex(i), 3, 3).setIdentity();
+    }
     approximation.f = computeStateDerivative<ocs2::scalar_t>(x, u, pinInterface_, stateConverter_);
 
     if (stateConverter_.getBaseVDim() == 6) {
