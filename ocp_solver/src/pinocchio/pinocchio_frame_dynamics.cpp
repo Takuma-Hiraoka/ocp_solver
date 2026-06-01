@@ -56,22 +56,26 @@ namespace ocp_solver {
 
     Eigen::Vector3d weightedMeshNormalInLocalFrame(const ContactCandidateInfo& contactCandidate) {
       if (!contactCandidate.alignContactFrameWithMeshNormal
-          || contactCandidate.meshVerticesInLocalFrame.empty()
-          || contactCandidate.meshNormalsInLocalFrame.empty()) {
+          || !contactCandidate.meshVerticesInLocalFrame
+          || !contactCandidate.meshNormalsInLocalFrame
+          || contactCandidate.meshVerticesInLocalFrame->empty()
+          || contactCandidate.meshNormalsInLocalFrame->empty()) {
         return contactCandidate.localPoseInLocalFrame.rotation().col(2);
       }
 
+      const auto& vertices = *contactCandidate.meshVerticesInLocalFrame;
+      const auto& normals = *contactCandidate.meshNormalsInLocalFrame;
       const Eigen::Vector3d contactPointInLocalFrame = contactCandidate.localPoseInLocalFrame.translation();
       Eigen::Vector3d weightedNormal = Eigen::Vector3d::Zero();
       double weightSum = 0.0;
       const double lengthScale = 0.02;
       const double invTwoSigma2 = 0.5 / (lengthScale * lengthScale);
-      for (size_t i = 0; i < contactCandidate.meshVerticesInLocalFrame.size(); ++i) {
+      for (size_t i = 0; i < vertices.size(); ++i) {
         const double squaredDistance =
-          (contactCandidate.meshVerticesInLocalFrame[i] - contactPointInLocalFrame).squaredNorm();
+          (vertices[i] - contactPointInLocalFrame).squaredNorm();
         const double weight = std::exp(-squaredDistance * invTwoSigma2);
-        const size_t normalIndex = std::min(i, contactCandidate.meshNormalsInLocalFrame.size() - 1);
-        const Eigen::Vector3d normal = contactCandidate.meshNormalsInLocalFrame[normalIndex];
+        const size_t normalIndex = std::min(i, normals.size() - 1);
+        const Eigen::Vector3d normal = normals[normalIndex];
         if (normal.allFinite() && normal.squaredNorm() > 1e-12) {
           weightedNormal.noalias() += weight * normal.normalized();
           weightSum += weight;
@@ -90,8 +94,10 @@ namespace ocp_solver {
 
     pinocchio::SE3 getEffectiveContactCandidateLocalPose(const ContactCandidateInfo& contactCandidate) {
       if (contactCandidate.alignContactFrameWithMeshNormal
-          && !contactCandidate.meshVerticesInLocalFrame.empty()
-          && !contactCandidate.meshNormalsInLocalFrame.empty()) {
+          && contactCandidate.meshVerticesInLocalFrame
+          && contactCandidate.meshNormalsInLocalFrame
+          && !contactCandidate.meshVerticesInLocalFrame->empty()
+          && !contactCandidate.meshNormalsInLocalFrame->empty()) {
         pinocchio::SE3 localPoseInLocalFrame = contactCandidate.localPoseInLocalFrame;
         localPoseInLocalFrame.rotation() =
           makeContactRotationFromNormal(localPoseInLocalFrame.rotation(),

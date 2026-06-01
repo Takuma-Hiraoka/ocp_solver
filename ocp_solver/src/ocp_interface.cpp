@@ -7,9 +7,48 @@
 #include "ocp_solver/common/zero_wrench_constraint.h"
 #include "ocp_solver/ocp_data/ocp_optimal_control_problem.h"
 
+#include <algorithm>
+#include <cmath>
+#include <memory>
 #include <stdexcept>
 
 namespace ocp_solver {
+  namespace {
+
+    std::pair<std::shared_ptr<const std::vector<Eigen::Vector3d>>,
+              std::shared_ptr<const std::vector<Eigen::Vector3d>>>
+    makeNormalSubmesh(const std::vector<Eigen::Vector3d>& vertices,
+                      const std::vector<Eigen::Vector3d>& normals,
+                      const Eigen::Vector3d& center,
+                      double radius) {
+      if (!std::isfinite(radius) || radius <= 0.0 || vertices.empty() || normals.empty()) {
+        return {std::make_shared<const std::vector<Eigen::Vector3d>>(vertices),
+                std::make_shared<const std::vector<Eigen::Vector3d>>(normals)};
+      }
+
+      std::vector<Eigen::Vector3d> submeshVertices;
+      std::vector<Eigen::Vector3d> submeshNormals;
+      submeshVertices.reserve(vertices.size());
+      submeshNormals.reserve(normals.size());
+      const double radiusSquared = radius * radius;
+      for (size_t i = 0; i < vertices.size(); ++i) {
+        if ((vertices[i] - center).squaredNorm() > radiusSquared) {
+          continue;
+        }
+        submeshVertices.push_back(vertices[i]);
+        submeshNormals.push_back(normals[std::min(i, normals.size() - 1)]);
+      }
+
+      if (submeshVertices.empty()) {
+        return {std::make_shared<const std::vector<Eigen::Vector3d>>(vertices),
+                std::make_shared<const std::vector<Eigen::Vector3d>>(normals)};
+      }
+      return {std::make_shared<const std::vector<Eigen::Vector3d>>(std::move(submeshVertices)),
+              std::make_shared<const std::vector<Eigen::Vector3d>>(std::move(submeshNormals))};
+    }
+
+  }  // namespace
+
   void OCPInterface::initialize(const std::string& taskName, const std::string& urdfFile, const std::vector<std::string> fixedJointNames, const bool& useAD, const std::vector<ContactCandidate>& contactCandidates, const pinocchio::JointModelComposite& baseJointComposite) {
     pinocchio::ModelTpl<double> pinocchioModel;
     urdf::ModelInterfaceSharedPtr urdfModel;
@@ -46,6 +85,7 @@ namespace ocp_solver {
         candidateAD.alignContactFrameWithMeshNormal = false;
         candidateAD.meshVerticesInLocalFrame = candidate.meshVerticesInLocalFrame;
         candidateAD.meshNormalsInLocalFrame = candidate.meshNormalsInLocalFrame;
+        candidateAD.meshNormalSubmeshRadius = candidate.meshNormalSubmeshRadius;
         candidateAD.contactPointStateIndex = candidate.contactPointStateIndex;
         contactCandidateInfoAD.push_back(candidateAD);
       }
@@ -112,8 +152,14 @@ namespace ocp_solver {
       }
       candidateInfo.searchContactPoint = contactCandidates[i].searchContactPoint;
       candidateInfo.alignContactFrameWithMeshNormal = contactCandidates[i].alignContactFrameWithMeshNormal;
-      candidateInfo.meshVerticesInLocalFrame = contactCandidates[i].meshVerticesInLocalFrame;
-      candidateInfo.meshNormalsInLocalFrame = contactCandidates[i].meshNormalsInLocalFrame;
+      candidateInfo.meshNormalSubmeshRadius = contactCandidates[i].meshNormalSubmeshRadius;
+      const auto normalSubmesh =
+        makeNormalSubmesh(contactCandidates[i].meshVerticesInLocalFrame,
+                          contactCandidates[i].meshNormalsInLocalFrame,
+                          candidateInfo.localPoseInLocalFrame.translation(),
+                          candidateInfo.meshNormalSubmeshRadius);
+      candidateInfo.meshVerticesInLocalFrame = normalSubmesh.first;
+      candidateInfo.meshNormalsInLocalFrame = normalSubmesh.second;
       if (candidateInfo.searchContactPoint) {
         candidateInfo.contactPointStateIndex = contactPointStateIndex++;
       }

@@ -4,6 +4,8 @@
 
 #include <Eigen/Core>
 
+#include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,6 +21,7 @@ namespace ocp_solver {
     bool alignContactFrameWithMeshNormal = false;
     std::vector<Eigen::Vector3d> meshVerticesInLocalFrame;
     std::vector<Eigen::Vector3d> meshNormalsInLocalFrame;
+    double meshNormalSubmeshRadius = std::numeric_limits<double>::infinity();
   };
 
   template <typename SCALAR_T>
@@ -32,8 +35,9 @@ namespace ocp_solver {
     pinocchio::SE3Tpl<SCALAR_T> localPose = pinocchio::SE3Tpl<SCALAR_T>::Identity();
     bool searchContactPoint = false;
     bool alignContactFrameWithMeshNormal = false;
-    std::vector<Eigen::Vector3d> meshVerticesInLocalFrame;
-    std::vector<Eigen::Vector3d> meshNormalsInLocalFrame;
+    std::shared_ptr<const std::vector<Eigen::Vector3d>> meshVerticesInLocalFrame;
+    std::shared_ptr<const std::vector<Eigen::Vector3d>> meshNormalsInLocalFrame;
+    double meshNormalSubmeshRadius = std::numeric_limits<double>::infinity();
     size_t contactPointStateIndex = 0;
   };
 
