@@ -2,6 +2,11 @@
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/multibody/model.hpp>
 
+#include <Eigen/Core>
+
+#include <string>
+#include <vector>
+
 namespace ocp_solver {
   using ContactCandidateIndex = std::size_t;
 
@@ -11,6 +16,9 @@ namespace ocp_solver {
     std::string parentJointName;
     pinocchio::SE3 localPose;
     bool searchContactPoint = false;
+    bool alignContactFrameWithMeshNormal = false;
+    std::vector<Eigen::Vector3d> meshVerticesInLocalFrame;
+    std::vector<Eigen::Vector3d> meshNormalsInLocalFrame;
   };
 
   template <typename SCALAR_T>
@@ -23,6 +31,9 @@ namespace ocp_solver {
     pinocchio::SE3Tpl<SCALAR_T> localPoseInLocalFrame = pinocchio::SE3Tpl<SCALAR_T>::Identity();
     pinocchio::SE3Tpl<SCALAR_T> localPose = pinocchio::SE3Tpl<SCALAR_T>::Identity();
     bool searchContactPoint = false;
+    bool alignContactFrameWithMeshNormal = false;
+    std::vector<Eigen::Vector3d> meshVerticesInLocalFrame;
+    std::vector<Eigen::Vector3d> meshNormalsInLocalFrame;
     size_t contactPointStateIndex = 0;
   };
 

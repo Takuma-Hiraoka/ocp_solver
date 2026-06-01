@@ -1,6 +1,16 @@
 #include "ocp_constraint/contact_fix_constraint.h"
+#include <ocs2_robotic_tools/common/RotationTransforms.h>
 
 namespace ocp_constraint {
+  namespace {
+    Eigen::Matrix3d makeAntiparallelNormalTargetRotation(const Eigen::Matrix3d& targetRotation) {
+      Eigen::Matrix3d rotation = targetRotation;
+      rotation.col(1) *= -1.0;
+      rotation.col(2) *= -1.0;
+      return rotation;
+    }
+  }
+
   ContactFixConstraint::ContactFixConstraint(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
                                              const ocp_solver::PinocchioFrameDynamics& frameDynamics,
                                              size_t numConstraints,
@@ -36,8 +46,12 @@ namespace ocp_constraint {
     ocs2::vector_t f = ocs2::vector_t::Zero(getNumConstraints(time));
     if (config_.Ax.size() > 0) {
       const pinocchio::SE3 targetPose = getTargetPose(time);
+      const Eigen::Matrix3d targetRotation =
+        makeAntiparallelNormalTargetRotation(targetPose.rotation());
       Eigen::Matrix<ocs2::scalar_t, 6, 1> xError = Eigen::Matrix<ocs2::scalar_t, 6, 1>::Zero();
       xError.head<3>() = frameDynamicsPtr_->getSearchedContactPointPosition(ocpPreComp) - targetPose.translation();
+      xError.tail<3>() = frameDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetRotation));
+      xError(5) = 0.0;
       f.noalias() += config_.Ax * xError;
     }
     if (config_.Av.size() > 0) {
@@ -66,12 +80,22 @@ namespace ocp_constraint {
 
     if (config_.Ax.size() > 0) {
       const pinocchio::SE3 targetPose = getTargetPose(time);
+      const Eigen::Matrix3d targetRotation =
+        makeAntiparallelNormalTargetRotation(targetPose.rotation());
       const ocs2::VectorFunctionLinearApproximation positionApprox =
         frameDynamicsPtr_->getSearchedContactPointPositionLinearApproximation(ocpPreComp);
-      linearApproximation.f.head(3).noalias() +=
-        config_.Ax.topLeftCorner(3, 3) * (positionApprox.f - targetPose.translation());
-      linearApproximation.dfdx.topRows(3).noalias() +=
-        config_.Ax.topLeftCorner(3, 3) * positionApprox.dfdx;
+      const ocs2::VectorFunctionLinearApproximation orientationApprox =
+        frameDynamicsPtr_->getOrientationErrorLinearApproximation(ocpPreComp, ocs2::matrixToQuaternion(targetRotation));
+
+      ocs2::VectorFunctionLinearApproximation poseApprox =
+        ocs2::VectorFunctionLinearApproximation::Zero(6, stateVariableDim, input.size());
+      poseApprox.f.head<3>() = positionApprox.f - targetPose.translation();
+      poseApprox.f.segment<2>(3) = orientationApprox.f.head<2>();
+      poseApprox.dfdx.topRows<3>().noalias() = positionApprox.dfdx;
+      poseApprox.dfdx.middleRows<2>(3).noalias() = orientationApprox.dfdx.topRows<2>();
+
+      linearApproximation.f.noalias() += config_.Ax * poseApprox.f;
+      linearApproximation.dfdx.noalias() += config_.Ax * poseApprox.dfdx;
     }
 
     if (config_.Av.size() > 0) {

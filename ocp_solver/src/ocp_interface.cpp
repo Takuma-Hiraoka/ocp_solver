@@ -43,6 +43,9 @@ namespace ocp_solver {
           candidate.localPose.rotation().cast<ocs2::ad_scalar_t>(),
           candidate.localPose.translation().cast<ocs2::ad_scalar_t>());
         candidateAD.searchContactPoint = candidate.searchContactPoint;
+        candidateAD.alignContactFrameWithMeshNormal = false;
+        candidateAD.meshVerticesInLocalFrame = candidate.meshVerticesInLocalFrame;
+        candidateAD.meshNormalsInLocalFrame = candidate.meshNormalsInLocalFrame;
         candidateAD.contactPointStateIndex = candidate.contactPointStateIndex;
         contactCandidateInfoAD.push_back(candidateAD);
       }
@@ -108,6 +111,9 @@ namespace ocp_solver {
         candidateInfo.localPose = frame.placement * contactCandidates[i].localPose;
       }
       candidateInfo.searchContactPoint = contactCandidates[i].searchContactPoint;
+      candidateInfo.alignContactFrameWithMeshNormal = contactCandidates[i].alignContactFrameWithMeshNormal;
+      candidateInfo.meshVerticesInLocalFrame = contactCandidates[i].meshVerticesInLocalFrame;
+      candidateInfo.meshNormalsInLocalFrame = contactCandidates[i].meshNormalsInLocalFrame;
       if (candidateInfo.searchContactPoint) {
         candidateInfo.contactPointStateIndex = contactPointStateIndex++;
       }

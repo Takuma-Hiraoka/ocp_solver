@@ -3,6 +3,8 @@
 #include "ocp_solver/solver/dynamics_helper_functions.h"
 
 #include <ocs2_robotic_tools/common/RotationDerivativesTransforms.h>
+#include <algorithm>
+#include <limits>
 #include <type_traits>
 
 // Pinnochio
@@ -16,12 +18,95 @@
 #include <pinocchio/multibody/model.hpp>
 
 namespace ocp_solver {
+  namespace {
+
+    Eigen::Matrix3d makeContactRotationFromNormal(const Eigen::Matrix3d& referenceRotation,
+                                                  Eigen::Vector3d normal) {
+      if (!normal.allFinite() || normal.squaredNorm() < 1e-12) {
+        return referenceRotation;
+      }
+      normal.normalize();
+      if (normal.dot(referenceRotation.col(2)) < 0.0) {
+        normal = -normal;
+      }
+
+      Eigen::Vector3d xAxis = referenceRotation.col(0) - normal * normal.dot(referenceRotation.col(0));
+      if (!xAxis.allFinite() || xAxis.squaredNorm() < 1e-12) {
+        xAxis = referenceRotation.col(1) - normal * normal.dot(referenceRotation.col(1));
+      }
+      if (!xAxis.allFinite() || xAxis.squaredNorm() < 1e-12) {
+        xAxis = normal.unitOrthogonal();
+      }
+      xAxis.normalize();
+      Eigen::Vector3d yAxis = normal.cross(xAxis).normalized();
+      xAxis = yAxis.cross(normal).normalized();
+
+      Eigen::Matrix3d rotation;
+      rotation.col(0) = xAxis;
+      rotation.col(1) = yAxis;
+      rotation.col(2) = normal;
+      return rotation;
+    }
+
+    Eigen::Vector3d weightedMeshNormalInLocalFrame(
+        const ContactCandidateInfoTpl<ocs2::scalar_t>& contactCandidate) {
+      if (!contactCandidate.alignContactFrameWithMeshNormal
+          || contactCandidate.meshVerticesInLocalFrame.empty()
+          || contactCandidate.meshNormalsInLocalFrame.empty()) {
+        return contactCandidate.localPoseInLocalFrame.rotation().col(2);
+      }
+
+      const Eigen::Vector3d contactPointInLocalFrame = contactCandidate.localPoseInLocalFrame.translation();
+      Eigen::Vector3d weightedNormal = Eigen::Vector3d::Zero();
+      double weightSum = 0.0;
+      const double lengthScale = 0.02;
+      const double invTwoSigma2 = 0.5 / (lengthScale * lengthScale);
+      for (size_t i = 0; i < contactCandidate.meshVerticesInLocalFrame.size(); ++i) {
+        const double squaredDistance =
+          (contactCandidate.meshVerticesInLocalFrame[i] - contactPointInLocalFrame).squaredNorm();
+        const double weight = std::exp(-squaredDistance * invTwoSigma2);
+        const size_t normalIndex = std::min(i, contactCandidate.meshNormalsInLocalFrame.size() - 1);
+        const Eigen::Vector3d normal = contactCandidate.meshNormalsInLocalFrame[normalIndex];
+        if (normal.allFinite() && normal.squaredNorm() > 1e-12) {
+          weightedNormal.noalias() += weight * normal.normalized();
+          weightSum += weight;
+        }
+      }
+      Eigen::Vector3d normal = Eigen::Vector3d::Zero();
+      if (weightSum > 0.0) {
+        normal = weightedNormal / weightSum;
+      }
+      if (!normal.allFinite() || normal.squaredNorm() < 1e-12) {
+        normal = contactCandidate.localPoseInLocalFrame.rotation().col(2);
+      }
+      return normal;
+    }
+
+    template <typename SCALAR_T>
+    pinocchio::SE3Tpl<SCALAR_T> getEffectiveContactCandidateLocalPose(
+        const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate) {
+      if constexpr (std::is_same_v<SCALAR_T, ocs2::scalar_t>) {
+        if (contactCandidate.alignContactFrameWithMeshNormal
+            && !contactCandidate.meshVerticesInLocalFrame.empty()
+            && !contactCandidate.meshNormalsInLocalFrame.empty()) {
+          pinocchio::SE3 localPoseInLocalFrame = contactCandidate.localPoseInLocalFrame;
+          localPoseInLocalFrame.rotation() =
+            makeContactRotationFromNormal(localPoseInLocalFrame.rotation(),
+                                          weightedMeshNormalInLocalFrame(contactCandidate));
+          return contactCandidate.localFramePose * localPoseInLocalFrame;
+        }
+      }
+      return contactCandidate.localPose;
+    }
+
+  }  // namespace
 
   template <typename SCALAR_T>
   pinocchio::SE3Tpl<SCALAR_T> getContactCandidatePlacement(
       const ocs2::PinocchioInterfaceTpl<SCALAR_T>& pinInterface,
       const ContactCandidateInfoTpl<SCALAR_T>& contactCandidate) {
-    return pinInterface.getData().oMi[contactCandidate.parentJointIndex] * contactCandidate.localPose;
+    return pinInterface.getData().oMi[contactCandidate.parentJointIndex]
+      * getEffectiveContactCandidateLocalPose(contactCandidate);
   }
   template pinocchio::SE3Tpl<ocs2::scalar_t> getContactCandidatePlacement(
       const ocs2::PinocchioInterfaceTpl<ocs2::scalar_t>& pinInterface,
@@ -38,8 +123,9 @@ namespace ocp_solver {
       const Eigen::MatrixBase<Matrix6xLike>& jacobian) {
     using DataType = std::remove_const_t<std::remove_reference_t<decltype(pinInterface.getData())>>;
     auto& data = const_cast<DataType&>(pinInterface.getData());
+    const auto localPose = getEffectiveContactCandidateLocalPose(contactCandidate);
     pinocchio::getFrameJacobian(pinInterface.getModel(), data, contactCandidate.parentJointIndex,
-                                contactCandidate.localPose, referenceFrame,
+                                localPose, referenceFrame,
                                 PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, jacobian));
   }
   template void getContactCandidateJacobian<ocs2::scalar_t, ocs2::matrix_t>(
@@ -70,13 +156,14 @@ namespace ocp_solver {
     Matrix6xLike& dJ = PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, jacobianTimeVariation);
 
     const pinocchio::JointIndex jointId = contactCandidate.parentJointIndex;
-    const SE3 oMframe = data.oMi[jointId] * contactCandidate.localPose;
+    const SE3 localPose = getEffectiveContactCandidateLocalPose(contactCandidate);
+    const SE3 oMframe = data.oMi[jointId] * localPose;
     pinocchio::details::translateJointJacobian(model, data, jointId, referenceFrame, oMframe, data.dJ, dJ);
 
     switch (referenceFrame) {
       case pinocchio::LOCAL: {
         const Motion& vJoint = data.v[jointId];
-        const Motion vFrame = contactCandidate.localPose.actInv(vJoint);
+        const Motion vFrame = localPose.actInv(vJoint);
         const int colRef = pinocchio::nv(model.joints[jointId]) + pinocchio::idx_v(model.joints[jointId]) - 1;
         for (Eigen::Index j = colRef; j >= 0; j = data.parents_fromRow[static_cast<size_t>(j)]) {
           typedef typename DataType::Matrix6x::ColXpr ColXprIn;
