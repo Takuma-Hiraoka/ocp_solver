@@ -10,6 +10,9 @@
 
 #include <ocp_solver/solver/state_converter.h>
 
+#include <functional>
+#include <vector>
+
 namespace ocp_solver {
 
 struct PoseOptimizerResult {
@@ -25,11 +28,15 @@ struct PoseOptimizerResult {
 
 class PoseOptimizer {
  public:
+  using StateProjection = std::function<void(ocs2::vector_t&)>;
+
   PoseOptimizer(const ocs2::sqp::Settings& settings,
                 const ocs2::OptimalControlProblem& optimalControlProblem,
                 const StateConverter<ocs2::scalar_t>& stateConverter,
                 ocs2::PinocchioInterface& pinocchioInterface);
 
+  void addStateProjection(StateProjection projection);
+  void setMaxLinesearchStepSize(ocs2::scalar_t maxStepSize);
   PoseOptimizerResult run(ocs2::scalar_t time, const ocs2::vector_t& initialState, const ocs2::vector_t& initialInput);
 
  private:
@@ -64,9 +71,13 @@ class PoseOptimizer {
   ocs2::vector_t getQuasiStaticBalance(const ocs2::vector_t& state, const ocs2::vector_t& input) const;
   ocs2::vector_t incrementState(const ocs2::vector_t& state, const ocs2::vector_t& delta, ocs2::scalar_t alpha) const;
   ocs2::vector_t incrementInput(const ocs2::vector_t& input, const ocs2::vector_t& delta, ocs2::scalar_t alpha) const;
+  int getOptimizedStateDim() const;
+  int getContactPointSearchStateDim() const;
   ocs2::matrix_t selectStateRows(const ocs2::matrix_t& dfdx) const;
+  ocs2::matrix_t selectStateHessian(const ocs2::matrix_t& dfdxx) const;
   ocs2::matrix_t selectInputRows(const ocs2::matrix_t& dfdu, Eigen::Index rows) const;
   ocs2::vector_t selectStateGradient(const ocs2::vector_t& dfdx) const;
+  ocs2::matrix_t selectInputStateRows(const ocs2::matrix_t& dfdux) const;
   ocs2::vector_t selectInputGradient(const ocs2::vector_t& dfdu) const;
   void addQuadraticApproximation(const ocs2::ScalarFunctionQuadraticApproximation& approximation, ocs2::matrix_t& hessian,
                                  ocs2::vector_t& gradient, ocs2::scalar_t& cost) const;
@@ -78,6 +89,8 @@ class PoseOptimizer {
   const StateConverter<ocs2::scalar_t>& stateConverter_;
   ocs2::PinocchioInterface& pinocchioInterface_;
   ocs2::FilterLinesearch filterLinesearch_;
+  std::vector<StateProjection> stateProjections_;
+  ocs2::scalar_t maxLinesearchStepSize_ = 1.0;
 };
 
 }  // namespace ocp_solver

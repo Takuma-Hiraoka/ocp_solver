@@ -41,6 +41,14 @@ PoseOptimizer::PoseOptimizer(const ocs2::sqp::Settings& settings, const ocs2::Op
   filterLinesearch_.g_min = settings_.g_min;
 }
 
+void PoseOptimizer::addStateProjection(StateProjection projection) {
+  stateProjections_.push_back(std::move(projection));
+}
+
+void PoseOptimizer::setMaxLinesearchStepSize(ocs2::scalar_t maxStepSize) {
+  maxLinesearchStepSize_ = std::clamp(maxStepSize, settings_.alpha_min, static_cast<ocs2::scalar_t>(1.0));
+}
+
 PoseOptimizerResult PoseOptimizer::run(ocs2::scalar_t time, const ocs2::vector_t& initialState, const ocs2::vector_t& initialInput) {
   if (initialState.rows() != static_cast<Eigen::Index>(stateConverter_.getStateDim())) {
     throw std::runtime_error("[PoseOptimizer] initialState has invalid size.");
@@ -55,6 +63,9 @@ PoseOptimizerResult PoseOptimizer::run(ocs2::scalar_t time, const ocs2::vector_t
   ocs2::vector_t state = initialState;
   ocs2::vector_t input = initialInput;
   zeroVelocityAndAcceleration(state, input);
+  for (const StateProjection& projection : stateProjections_) {
+    projection(state);
+  }
 
   PoseOptimizerResult result;
   result.convergence = ocs2::sqp::Convergence::FALSE;
@@ -92,9 +103,9 @@ PoseOptimizerResult PoseOptimizer::run(ocs2::scalar_t time, const ocs2::vector_t
 
 PoseOptimizer::QuadraticSubproblem PoseOptimizer::setupQuadraticSubproblem(ocs2::scalar_t time, const ocs2::vector_t& state,
                                                                            const ocs2::vector_t& input) {
-  const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int nx = getOptimizedStateDim();
   const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
-  const int nz = nqTangent + nw;
+  const int nz = nx + nw;
 
   QuadraticSubproblem subproblem;
   subproblem.hessian = ocs2::matrix_t::Zero(nz, nz);
@@ -171,14 +182,17 @@ PoseOptimizer::StepResult PoseOptimizer::takeStep(ocs2::scalar_t time, const ocs
                                                   const ocs2::vector_t& delta, const QuadraticSubproblem& subproblem) {
   using StepType = ocs2::FilterLinesearch::StepType;
 
-  const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int nx = getOptimizedStateDim();
   const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
-  const ocs2::scalar_t deltaXnorm = delta.head(nqTangent).norm();
-  const ocs2::scalar_t deltaUnorm = delta.segment(nqTangent, nw).norm();
+  const ocs2::scalar_t deltaXnorm = delta.head(nx).norm();
+  const ocs2::scalar_t deltaUnorm = delta.segment(nx, nw).norm();
 
-  ocs2::scalar_t alpha = 1.0;
+  ocs2::scalar_t alpha = maxLinesearchStepSize_;
   do {
     ocs2::vector_t stateNew = incrementState(state, delta, alpha);
+    for (const StateProjection& projection : stateProjections_) {
+      projection(stateNew);
+    }
     ocs2::vector_t inputNew = incrementInput(input, delta, alpha);
     const ocs2::PerformanceIndex performanceNew = computePerformance(time, stateNew, inputNew);
 
@@ -310,28 +324,71 @@ ocs2::vector_t PoseOptimizer::incrementState(const ocs2::vector_t& state, const 
   ocs2::vector_t stateNew = state;
   const int nq = pinocchioInterface_.getModel().nq;
   const int nv = pinocchioInterface_.getModel().nv;
+  const int contactPointSearchStateDim = getContactPointSearchStateDim();
   stateNew.head(nq) = pinocchio::integrate(pinocchioInterface_.getModel(), state.head(nq), alpha * delta.head(nv));
   stateNew.segment(stateConverter_.getGeneralizedVelocitiesStartindex(), nv).setZero();
+  if (contactPointSearchStateDim > 0) {
+    stateNew.segment(stateConverter_.getStateDimWithoutContactPointVariables(), contactPointSearchStateDim) +=
+      alpha * delta.segment(stateConverter_.getTangentDim(), contactPointSearchStateDim);
+  }
   return stateNew;
 }
 
 ocs2::vector_t PoseOptimizer::incrementInput(const ocs2::vector_t& input, const ocs2::vector_t& delta, ocs2::scalar_t alpha) const {
   ocs2::vector_t inputNew = input;
-  const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int nx = getOptimizedStateDim();
   const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
   if (nw > 0) {
-    inputNew.head(nw) += alpha * delta.segment(nqTangent, nw);
+    inputNew.head(nw) += alpha * delta.segment(nx, nw);
   }
   inputNew.segment(stateConverter_.getJointAccelerationsStartindex(), stateConverter_.getJointDim()).setZero();
   return inputNew;
 }
 
+int PoseOptimizer::getOptimizedStateDim() const {
+  return static_cast<int>(stateConverter_.getTangentDim() + getContactPointSearchStateDim());
+}
+
+int PoseOptimizer::getContactPointSearchStateDim() const {
+  return static_cast<int>(3 * stateConverter_.getContactPointSearchNum());
+}
+
 ocs2::matrix_t PoseOptimizer::selectStateRows(const ocs2::matrix_t& dfdx) const {
   const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int contactPointSearchStateDim = getContactPointSearchStateDim();
+  const int nx = getOptimizedStateDim();
   if (dfdx.rows() == 0) {
-    return ocs2::matrix_t(0, nqTangent);
+    return ocs2::matrix_t(0, nx);
   }
-  return dfdx.leftCols(nqTangent);
+  ocs2::matrix_t rows = ocs2::matrix_t::Zero(dfdx.rows(), nx);
+  rows.leftCols(nqTangent) = dfdx.leftCols(nqTangent);
+  if (contactPointSearchStateDim > 0 && dfdx.cols() >= static_cast<Eigen::Index>(stateConverter_.getStateVariableDim())) {
+    rows.rightCols(contactPointSearchStateDim) =
+      dfdx.middleCols(stateConverter_.getStateVariableDimWithoutContactPointVariables(), contactPointSearchStateDim);
+  }
+  return rows;
+}
+
+ocs2::matrix_t PoseOptimizer::selectStateHessian(const ocs2::matrix_t& dfdxx) const {
+  const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int contactPointSearchStateDim = getContactPointSearchStateDim();
+  const int nx = getOptimizedStateDim();
+  if (dfdxx.rows() == 0 || dfdxx.cols() == 0) {
+    return ocs2::matrix_t::Zero(nx, nx);
+  }
+  ocs2::matrix_t hessian = ocs2::matrix_t::Zero(nx, nx);
+  hessian.topLeftCorner(nqTangent, nqTangent) = dfdxx.topLeftCorner(nqTangent, nqTangent);
+  if (contactPointSearchStateDim > 0 && dfdxx.rows() >= static_cast<Eigen::Index>(stateConverter_.getStateVariableDim())
+      && dfdxx.cols() >= static_cast<Eigen::Index>(stateConverter_.getStateVariableDim())) {
+    const Eigen::Index extraStart = stateConverter_.getStateVariableDimWithoutContactPointVariables();
+    hessian.topRightCorner(nqTangent, contactPointSearchStateDim) =
+      dfdxx.block(0, extraStart, nqTangent, contactPointSearchStateDim);
+    hessian.bottomLeftCorner(contactPointSearchStateDim, nqTangent) =
+      dfdxx.block(extraStart, 0, contactPointSearchStateDim, nqTangent);
+    hessian.bottomRightCorner(contactPointSearchStateDim, contactPointSearchStateDim) =
+      dfdxx.block(extraStart, extraStart, contactPointSearchStateDim, contactPointSearchStateDim);
+  }
+  return hessian;
 }
 
 ocs2::matrix_t PoseOptimizer::selectInputRows(const ocs2::matrix_t& dfdu, Eigen::Index rows) const {
@@ -344,10 +401,26 @@ ocs2::matrix_t PoseOptimizer::selectInputRows(const ocs2::matrix_t& dfdu, Eigen:
 
 ocs2::vector_t PoseOptimizer::selectStateGradient(const ocs2::vector_t& dfdx) const {
   const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int contactPointSearchStateDim = getContactPointSearchStateDim();
+  const int nx = getOptimizedStateDim();
   if (dfdx.rows() == 0) {
-    return ocs2::vector_t::Zero(nqTangent);
+    return ocs2::vector_t::Zero(nx);
   }
-  return dfdx.head(nqTangent);
+  ocs2::vector_t gradient = ocs2::vector_t::Zero(nx);
+  gradient.head(nqTangent) = dfdx.head(nqTangent);
+  if (contactPointSearchStateDim > 0 && dfdx.rows() >= static_cast<Eigen::Index>(stateConverter_.getStateVariableDim())) {
+    gradient.tail(contactPointSearchStateDim) =
+      dfdx.segment(stateConverter_.getStateVariableDimWithoutContactPointVariables(), contactPointSearchStateDim);
+  }
+  return gradient;
+}
+
+ocs2::matrix_t PoseOptimizer::selectInputStateRows(const ocs2::matrix_t& dfdux) const {
+  const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
+  if (dfdux.rows() == 0 || dfdux.cols() == 0 || nw == 0) {
+    return ocs2::matrix_t::Zero(nw, getOptimizedStateDim());
+  }
+  return selectStateRows(dfdux.topRows(nw));
 }
 
 ocs2::vector_t PoseOptimizer::selectInputGradient(const ocs2::vector_t& dfdu) const {
@@ -360,24 +433,24 @@ ocs2::vector_t PoseOptimizer::selectInputGradient(const ocs2::vector_t& dfdu) co
 
 void PoseOptimizer::addQuadraticApproximation(const ocs2::ScalarFunctionQuadraticApproximation& approximation, ocs2::matrix_t& hessian,
                                               ocs2::vector_t& gradient, ocs2::scalar_t& cost) const {
-  const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int nx = getOptimizedStateDim();
   const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
 
-  gradient.head(nqTangent) += selectStateGradient(approximation.dfdx);
+  gradient.head(nx) += selectStateGradient(approximation.dfdx);
   if (nw > 0) {
-    gradient.segment(nqTangent, nw) += selectInputGradient(approximation.dfdu);
+    gradient.segment(nx, nw) += selectInputGradient(approximation.dfdu);
   }
 
   if (approximation.dfdxx.size() > 0) {
-    hessian.topLeftCorner(nqTangent, nqTangent) += approximation.dfdxx.topLeftCorner(nqTangent, nqTangent);
+    hessian.topLeftCorner(nx, nx) += selectStateHessian(approximation.dfdxx);
   }
   if (nw > 0 && approximation.dfduu.size() > 0) {
-    hessian.block(nqTangent, nqTangent, nw, nw) += approximation.dfduu.topLeftCorner(nw, nw);
+    hessian.block(nx, nx, nw, nw) += approximation.dfduu.topLeftCorner(nw, nw);
   }
   if (nw > 0 && approximation.dfdux.size() > 0) {
-    const ocs2::matrix_t cross = approximation.dfdux.topLeftCorner(nw, nqTangent);
-    hessian.block(nqTangent, 0, nw, nqTangent) += cross;
-    hessian.block(0, nqTangent, nqTangent, nw) += cross.transpose();
+    const ocs2::matrix_t cross = selectInputStateRows(approximation.dfdux);
+    hessian.block(nx, 0, nw, nx) += cross;
+    hessian.block(0, nx, nx, nw) += cross.transpose();
   }
   cost += approximation.f;
 }
@@ -386,17 +459,18 @@ void PoseOptimizer::appendLinearConstraint(const ocs2::VectorFunctionLinearAppro
                                            ocs2::matrix_t& constraints, ocs2::vector_t& lowerBound,
                                            ocs2::vector_t& upperBound) const {
   const int nqTangent = static_cast<int>(stateConverter_.getTangentDim());
+  const int nx = getOptimizedStateDim();
   const int nw = static_cast<int>(6 * stateConverter_.getContactNum());
-  const int nz = nqTangent + nw;
+  const int nz = nx + nw;
   const int nc = static_cast<int>(approximation.f.rows());
   if (nc == 0) {
     return;
   }
 
   ocs2::matrix_t rows = ocs2::matrix_t::Zero(nc, nz);
-  rows.leftCols(nqTangent) = selectStateRows(approximation.dfdx);
+  rows.leftCols(nx) = selectStateRows(approximation.dfdx);
   if (nw > 0) {
-    rows.block(0, nqTangent, nc, nw) = selectInputRows(approximation.dfdu, nc);
+    rows.block(0, nx, nc, nw) = selectInputRows(approximation.dfdu, nc);
   }
 
   ocs2::vector_t lower(nc);
