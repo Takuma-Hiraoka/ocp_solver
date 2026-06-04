@@ -15,6 +15,8 @@ namespace ocp_solver {
     OCPPreComputation* clone() const override;
 
     void request(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x, const ocs2::vector_t& u) override;
+    void requestPreJump(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x) override;
+    void requestFinal(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x) override;
     ocs2::PinocchioInterface& getPinocchioInterface() { return pinocchioInterface_; }
     ocs2::PinocchioInterface& getPinocchioInterface() const { return pinocchioInterface_; }
     const ocs2::vector_t& getGeneralizedCoordinates() const { return q_; }
@@ -28,6 +30,7 @@ namespace ocp_solver {
     OCPPreComputation(const OCPPreComputation& rhs);
 
     void updatePinocchioModelKinematics(const ocs2::vector_t& q, const ocs2::vector_t& v, const ocs2::vector_t& a) const;
+    void updateFromStateOnly(const ocs2::vector_t& x);
 
     mutable ocs2::PinocchioInterface pinocchioInterface_;
     const StateConverter<ocs2::scalar_t>* stateConverterPtr_;

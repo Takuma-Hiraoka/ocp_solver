@@ -6,6 +6,7 @@
 #include <ocs2_oc/oc_problem/OcpSize.h>
 #include <ocs2_oc/trajectory_adjustment/TrajectorySpreadingHelperFunctions.h>
 #include <algorithm>
+#include <atomic>
 #include "ocp_solver/solver/ocp_sqp_solver.h"
 #include "ocp_solver/solver/ocp_pre_computation.h"
 #include "ocp_solver/solver/ocp_transcription.h"

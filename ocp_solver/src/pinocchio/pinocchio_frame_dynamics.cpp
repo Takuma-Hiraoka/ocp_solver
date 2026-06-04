@@ -123,10 +123,10 @@ namespace ocp_solver {
       pinocchio::JointIndex parentJointIndex,
       const pinocchio::SE3& localPose,
       pinocchio::ReferenceFrame referenceFrame) {
-      ocs2::matrix_t v_partial_dq(6, model.nv);
-      ocs2::matrix_t spatial_dq(6, model.nv);
-      ocs2::matrix_t spatial_dv(6, model.nv);
-      ocs2::matrix_t spatial_da(6, model.nv);
+      ocs2::matrix_t v_partial_dq = ocs2::matrix_t::Zero(6, model.nv);
+      ocs2::matrix_t spatial_dq = ocs2::matrix_t::Zero(6, model.nv);
+      ocs2::matrix_t spatial_dv = ocs2::matrix_t::Zero(6, model.nv);
+      ocs2::matrix_t spatial_da = ocs2::matrix_t::Zero(6, model.nv);
       pinocchio::getFrameAccelerationDerivatives(model, data, parentJointIndex, localPose, referenceFrame,
                                                  v_partial_dq, spatial_dq, spatial_dv, spatial_da);
 

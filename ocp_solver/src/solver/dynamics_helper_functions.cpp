@@ -319,6 +319,8 @@ namespace ocp_solver {
     data.M.fill(SCALAR_T(0.0));
     pinocchio::forwardKinematics(model, data, q, qd);
     pinocchio::crba(model, data, q);
+    data.M.template triangularView<Eigen::StrictlyLower>() =
+      data.M.transpose().template triangularView<Eigen::StrictlyLower>();
     pinocchio::nonLinearEffects(model, data, q, qd);
 
     Eigen::Matrix<SCALAR_T, 6, 1> baseExternalForces = Eigen::Matrix<SCALAR_T, 6, 1>::Zero();
@@ -432,6 +434,8 @@ namespace ocp_solver {
     pinocchio::DataTpl<SCALAR_T>& data = pinocchioInterface.getData();
 
     pinocchio::crba(model, data, q);
+    data.M.template triangularView<Eigen::StrictlyLower>() =
+      data.M.transpose().template triangularView<Eigen::StrictlyLower>();
     pinocchio::nonLinearEffects(model, data, q, qd);
 
     size_t n_qd = qd.size();
@@ -495,6 +499,8 @@ namespace ocp_solver {
     for (int i=0; i<wrenches.size(); i++) setExternalForce(wrenches[i].second, i);
 
     pinocchio::crba(model, data, q);
+    data.M.template triangularView<Eigen::StrictlyLower>() =
+      data.M.transpose().template triangularView<Eigen::StrictlyLower>();
     pinocchio::nonLinearEffects(model, data, q, qd);
 
     size_t n_qd = qd.size();

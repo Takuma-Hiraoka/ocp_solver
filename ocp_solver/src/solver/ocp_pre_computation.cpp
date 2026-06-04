@@ -42,6 +42,8 @@ namespace ocp_solver {
     pinocchio::computeJointJacobiansTimeVariation(model, data, q, v);
     pinocchio::forwardKinematics(model, data, q, v, a);
     pinocchio::crba(model, data, q);
+    data.M.triangularView<Eigen::StrictlyLower>() =
+      data.M.transpose().triangularView<Eigen::StrictlyLower>();
     pinocchio::nonLinearEffects(model, data, q, v);
     pinocchio::computeForwardKinematicsDerivatives(model, data, q, v, a);
   }
@@ -70,6 +72,30 @@ namespace ocp_solver {
     baseAccelerationLinearApproximationValid_ = false;
     updatePinocchioModelKinematics(q_, v_, a_);
 
+  }
+
+  void OCPPreComputation::updateFromStateOnly(const ocs2::vector_t& x) {
+    state_ = x;
+    input_ = ocs2::vector_t::Zero(stateConverterPtr_->getInputDim());
+    q_ = stateConverterPtr_->getGeneralizedCoordinates(x);
+    v_ = stateConverterPtr_->getGeneralizedVelocities(x, input_);
+    a_ = ocs2::vector_t::Zero(stateConverterPtr_->getTangentDim());
+    baseAccelerationLinearApproximationValid_ = false;
+    updatePinocchioModelKinematics(q_, v_, a_);
+  }
+
+  void OCPPreComputation::requestPreJump(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x) {
+    if (!request.containsAny(ocs2::Request::Cost + ocs2::Request::Constraint + ocs2::Request::SoftConstraint + ocs2::Request::Dynamics)) {
+      return;
+    }
+    updateFromStateOnly(x);
+  }
+
+  void OCPPreComputation::requestFinal(ocs2::RequestSet request, ocs2::scalar_t t, const ocs2::vector_t& x) {
+    if (!request.containsAny(ocs2::Request::Cost + ocs2::Request::Constraint + ocs2::Request::SoftConstraint)) {
+      return;
+    }
+    updateFromStateOnly(x);
   }
 
 }

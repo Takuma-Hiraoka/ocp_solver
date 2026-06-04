@@ -14,7 +14,8 @@ namespace ocp_solver {
                                                                                                  const ocs2::vector_t& input,
                                                                                                  const ocs2::PreComputation& preComp) const {
 
-    ocs2::VectorFunctionLinearApproximation linearApproximation(getNumConstraints(time), state_variable_dim_, input_variable_dim_);
+    ocs2::VectorFunctionLinearApproximation linearApproximation =
+      ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), state_variable_dim_, input_variable_dim_);
 
     // append linearApproximation of each constraintTerm
     size_t i = 0;
@@ -38,9 +39,9 @@ namespace ocp_solver {
     const size_t numConstraints = getNumConstraints(time);
 
     ocs2::VectorFunctionQuadraticApproximation quadraticApproximation;
-    quadraticApproximation.f.resize(numConstraints);
-    quadraticApproximation.dfdx.resize(numConstraints, state_variable_dim_);
-    quadraticApproximation.dfdu.resize(numConstraints, input_variable_dim_);
+    quadraticApproximation.f.setZero(numConstraints);
+    quadraticApproximation.dfdx.setZero(numConstraints, state_variable_dim_);
+    quadraticApproximation.dfdu.setZero(numConstraints, input_variable_dim_);
     quadraticApproximation.dfdxx.reserve(numConstraints);  // Use reserve instead of resize to avoid unnecessary allocations.
     quadraticApproximation.dfdux.reserve(numConstraints);
     quadraticApproximation.dfduu.reserve(numConstraints);
