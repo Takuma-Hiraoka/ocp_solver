@@ -44,6 +44,7 @@ namespace ocp_constraint {
 
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::vector_t f = ocs2::vector_t::Zero(getNumConstraints(time));
+    Eigen::Index row = 0;
     if (config_.Ax.size() > 0) {
       const pinocchio::SE3 targetPose = getTargetPose(time);
       const Eigen::Matrix3d targetRotation =
@@ -52,13 +53,17 @@ namespace ocp_constraint {
       xError.head<3>() = frameDynamicsPtr_->getSearchedContactPointPosition(ocpPreComp) - targetPose.translation();
       xError.tail<3>() = frameDynamicsPtr_->getOrientationError(ocpPreComp, ocs2::matrixToQuaternion(targetRotation));
       xError(5) = 0.0;
-      f.noalias() += config_.Ax * xError;
+      f.segment(row, config_.Ax.rows()).noalias() = config_.Ax * xError;
+      row += config_.Ax.rows();
     }
     if (config_.Av.size() > 0) {
-      f.noalias() += config_.Av * (frameDynamicsPtr_->getTwist(ocpPreComp) - getTargetTwist(time));
+      f.segment(row, config_.Av.rows()).noalias() =
+        config_.Av * (frameDynamicsPtr_->getTwist(ocpPreComp) - getTargetTwist(time));
+      row += config_.Av.rows();
     }
     if (config_.Aa.size() > 0) {
-      f.noalias() += config_.Aa * (frameDynamicsPtr_->getAccelerations(ocpPreComp) - getTargetAcc(time));
+      f.segment(row, config_.Aa.rows()).noalias() =
+        config_.Aa * (frameDynamicsPtr_->getAccelerations(ocpPreComp) - getTargetAcc(time));
     }
     return f;
   }
@@ -78,6 +83,7 @@ namespace ocp_constraint {
     ocs2::VectorFunctionLinearApproximation linearApproximation =
       ocs2::VectorFunctionLinearApproximation::Zero(getNumConstraints(time), stateVariableDim, input.size());
 
+    Eigen::Index row = 0;
     if (config_.Ax.size() > 0) {
       const pinocchio::SE3 targetPose = getTargetPose(time);
       const Eigen::Matrix3d targetRotation =
@@ -94,22 +100,27 @@ namespace ocp_constraint {
       poseApprox.dfdx.topRows<3>().noalias() = positionApprox.dfdx;
       poseApprox.dfdx.middleRows<2>(3).noalias() = orientationApprox.dfdx.topRows<2>();
 
-      linearApproximation.f.noalias() += config_.Ax * poseApprox.f;
-      linearApproximation.dfdx.noalias() += config_.Ax * poseApprox.dfdx;
+      linearApproximation.f.segment(row, config_.Ax.rows()).noalias() = config_.Ax * poseApprox.f;
+      linearApproximation.dfdx.middleRows(row, config_.Ax.rows()).noalias() = config_.Ax * poseApprox.dfdx;
+      linearApproximation.dfdu.middleRows(row, config_.Ax.rows()).noalias() = config_.Ax * poseApprox.dfdu;
+      row += config_.Ax.rows();
     }
 
     if (config_.Av.size() > 0) {
       const ocs2::VectorFunctionLinearApproximation velocityApprox = frameDynamicsPtr_->getTwistLinearApproximation(ocpPreComp);
-      linearApproximation.f.noalias() += config_.Av * (velocityApprox.f - getTargetTwist(time));
-      linearApproximation.dfdx.noalias() += config_.Av * velocityApprox.dfdx;
-      linearApproximation.dfdu.noalias() += config_.Av * velocityApprox.dfdu;
+      linearApproximation.f.segment(row, config_.Av.rows()).noalias() =
+        config_.Av * (velocityApprox.f - getTargetTwist(time));
+      linearApproximation.dfdx.middleRows(row, config_.Av.rows()).noalias() = config_.Av * velocityApprox.dfdx;
+      linearApproximation.dfdu.middleRows(row, config_.Av.rows()).noalias() = config_.Av * velocityApprox.dfdu;
+      row += config_.Av.rows();
     }
 
     if (config_.Aa.size() > 0) {
       const ocs2::VectorFunctionLinearApproximation accelApprox = frameDynamicsPtr_->getAccelerationsLinearApproximation(ocpPreComp);
-      linearApproximation.f.noalias() += config_.Aa * (accelApprox.f - getTargetAcc(time));
-      linearApproximation.dfdx.noalias() += config_.Aa * accelApprox.dfdx;
-      linearApproximation.dfdu.noalias() += config_.Aa * accelApprox.dfdu;
+      linearApproximation.f.segment(row, config_.Aa.rows()).noalias() =
+        config_.Aa * (accelApprox.f - getTargetAcc(time));
+      linearApproximation.dfdx.middleRows(row, config_.Aa.rows()).noalias() = config_.Aa * accelApprox.dfdx;
+      linearApproximation.dfdu.middleRows(row, config_.Aa.rows()).noalias() = config_.Aa * accelApprox.dfdu;
     }
 
     return linearApproximation;

@@ -33,7 +33,7 @@ namespace ocp_constraint {
     virtual const ocs2::vector_t getTargetTwist(ocs2::scalar_t time) const { return targetTwist_; }
     virtual const ocs2::vector_t getTargetAcc(ocs2::scalar_t time) const { return targetAcc_; }
 
-    size_t getNumConstraints(ocs2::scalar_t time) const override { return numConstraints_; }
+    size_t getNumConstraints(ocs2::scalar_t time) const override { return getConfiguredNumConstraints(); }
     ocs2::vector_t getValue(ocs2::scalar_t time,
                             const ocs2::vector_t& state,
                             const ocs2::vector_t& input,
@@ -44,6 +44,8 @@ namespace ocp_constraint {
                                                                    const ocs2::PreComputation& preComp) const override;
 
   protected:
+    size_t getConfiguredNumConstraints() const;
+
     std::unique_ptr<ocp_solver::PinocchioFrameDynamics> frameDynamicsPtr_;
     const size_t numConstraints_;
     Config config_;
