@@ -42,15 +42,15 @@ namespace ocp_constraint {
     ocs2::scalar_t afterTime = -1.0;
     pinocchio::SE3 afterSE3 = pinocchio::SE3::Identity();
     for (size_t i=0; (i<contactSchedule.contactSequence.size()) && (afterTime == -1.0); i++) {
-      for (std::pair<pinocchio::FrameIndex, pinocchio::SE3> contact : contactSchedule.contactSequence[i]) {
+      for (const ocp_solver::ContactTargetTrajectory& contact : contactSchedule.contactSequence[i]) {
         if (contact.first == frameDynamicsPtr_->getFrameId()) {
           if ((i < contactSchedule.eventTimes.size()) && (contactSchedule.eventTimes[i] <= time)) {
             beforeTime = contactSchedule.eventTimes[i];
-            beforeSE3 = contact.second;
+            beforeSE3 = contact.second.getTargetPose(beforeTime);
           }
           if ((i != 0) && (contactSchedule.eventTimes[i-1] > time)) {
             afterTime = contactSchedule.eventTimes[i-1];
-            afterSE3 = contact.second;
+            afterSE3 = contact.second.getTargetPose(afterTime);
           }
         }
       }
@@ -66,9 +66,9 @@ namespace ocp_constraint {
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
       bool hasContactTarget = false;
-      for (const std::pair<ocp_solver::ContactCandidateIndex, pinocchio::SE3>& contact : referenceManagerPtr_->getContacts(time)) {
+      for (const ocp_solver::ContactTargetTrajectory& contact : referenceManagerPtr_->getContacts(time)) {
         if (contact.first == frameDynamicsPtr_->getFrameId()) {
-          targetPose = contact.second;
+          targetPose = contact.second.getTargetPose(time);
           hasContactTarget = true;
           break;
         }
@@ -125,9 +125,9 @@ namespace ocp_constraint {
     if (config_.Ax.size() > 0) {
       pinocchio::SE3 targetPose = pinocchio::SE3::Identity();
       bool hasContactTarget = false;
-      for (const std::pair<ocp_solver::ContactCandidateIndex, pinocchio::SE3>& contact : referenceManagerPtr_->getContacts(time)) {
+      for (const ocp_solver::ContactTargetTrajectory& contact : referenceManagerPtr_->getContacts(time)) {
         if (contact.first == frameDynamicsPtr_->getFrameId()) {
-          targetPose = contact.second;
+          targetPose = contact.second.getTargetPose(time);
           hasContactTarget = true;
           break;
         }

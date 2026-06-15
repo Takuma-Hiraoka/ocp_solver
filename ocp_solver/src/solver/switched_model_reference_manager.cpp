@@ -5,13 +5,13 @@ namespace ocp_solver {
     : ReferenceManager(ocs2::TargetTrajectories(), ocs2::ModeSchedule()),
       contactSchedule_(std::move(contactSchedule)) {}
 
-  const std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > SwitchedModelReferenceManager::getContacts(ocs2::scalar_t time) const {
+  std::vector<ContactTargetTrajectory> SwitchedModelReferenceManager::getContacts(ocs2::scalar_t time) const {
     return this->getContactSchedule().contactAtTime(time);
   }
 
   bool SwitchedModelReferenceManager::isInContact(ocs2::scalar_t time, ContactCandidateIndex index) const {
-    const std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > contacts = this->getContacts(time);
-    for (std::pair<ContactCandidateIndex, pinocchio::SE3> contact : contacts) {
+    const std::vector<ContactTargetTrajectory> contacts = this->getContacts(time);
+    for (const ContactTargetTrajectory& contact : contacts) {
       if (contact.first == index) return true;
     }
     return false;

@@ -5,25 +5,19 @@ namespace ocp_constraint {
   PositionConstraintAD::PositionConstraintAD(const ocp_solver::PinocchioFrameDynamicsCppAd& frameDynamics,
                                              size_t numConstraints,
                                              Config config,
-                                             pinocchio::SE3 targetPose,
-                                             ocs2::vector_t targetTwist,
-                                             ocs2::vector_t targetAcc)
+                                             ocp_solver::TargetSE3Trajectory targetTrajectory)
     : StateInputConstraint(ocs2::ConstraintOrder::Linear),
       frameDynamicsPtr_(frameDynamics.clone()),
       numConstraints_(numConstraints),
       config_(std::move(config)),
-      targetPose_(std::move(targetPose)),
-      targetTwist_(std::move(targetTwist)),
-      targetAcc_(std::move(targetAcc)) {}
+      targetTrajectory_(std::move(targetTrajectory)) {}
 
   PositionConstraintAD::PositionConstraintAD(const PositionConstraintAD& rhs)
     : StateInputConstraint(rhs),
       frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
       numConstraints_(rhs.numConstraints_),
       config_(rhs.config_),
-      targetPose_(rhs.targetPose_),
-      targetTwist_(rhs.targetTwist_),
-      targetAcc_(rhs.targetAcc_) {}
+      targetTrajectory_(rhs.targetTrajectory_) {}
 
   void PositionConstraintAD::configure(Config&& config) {
     assert(config.Ax.size() > 0 || config.Av.size() > 0);

@@ -1,20 +1,26 @@
 #include "ocp_solver/contact_schedule.h"
 #include <ocs2_core/misc/Display.h>
+#include <algorithm>
 
 namespace ocp_solver {
-  ContactSchedule::ContactSchedule(std::vector<ocs2::scalar_t> eventTimes_, std::vector<std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > > contactSequence_)
+  ContactSchedule::ContactSchedule(std::vector<ocs2::scalar_t> eventTimes_, std::vector<std::vector<ContactTargetTrajectory> > contactSequence_)
     : ModeSchedule(eventTimes_, std::vector<size_t>(eventTimes_.size()+1, 0)), contactSequence(std::move(contactSequence_)) {
     assert(!contactSequence.empty());
     assert(eventTimes.size() + 1 == contactSequence.size());
   }
 
-  std::vector<std::pair<ContactCandidateIndex, pinocchio::SE3> > ContactSchedule::contactAtTime(ocs2::scalar_t time) const {
+  std::vector<ContactTargetTrajectory> ContactSchedule::contactAtTime(ocs2::scalar_t time) const {
     const size_t ind = ocs2::lookup::findIndexInTimeArray(eventTimes, time);
     return contactSequence[ind];
   }
 
+  ContactTargetTrajectory makeContactTarget(ContactCandidateIndex index, ocs2::scalar_t time, const pinocchio::SE3& pose, bool interpolate) {
+    return {index, TargetSE3Trajectory({time}, {pose}, {ocs2::vector_t::Zero(6)}, {ocs2::vector_t::Zero(6)}, interpolate)};
+  }
+
   void swap(ContactSchedule& lh, ContactSchedule& rh) {
     lh.eventTimes.swap(rh.eventTimes);
+    lh.modeSequence.swap(rh.modeSequence);
     lh.contactSequence.swap(rh.contactSequence);
   }
 
@@ -26,9 +32,11 @@ namespace ocp_solver {
         stream << "candidate: contactIndex " << contactSchedule.contactSequence[i][j].first << "\n";
         stream << "target" << "\n";
         stream << "pos" << "\n";
-        stream << contactSchedule.contactSequence[i][j].second.translation() << "\n";
+        stream << contactSchedule.contactSequence[i][j].second.getTargetPose(
+          contactSchedule.eventTimes.empty() ? 0.0 : contactSchedule.eventTimes[std::min(i, contactSchedule.eventTimes.size() - 1)]).translation() << "\n";
         stream << "rot" << "\n";
-        stream << contactSchedule.contactSequence[i][j].second.rotation() << "\n";
+        stream << contactSchedule.contactSequence[i][j].second.getTargetPose(
+          contactSchedule.eventTimes.empty() ? 0.0 : contactSchedule.eventTimes[std::min(i, contactSchedule.eventTimes.size() - 1)]).rotation() << "\n";
       }
     }
     return stream;

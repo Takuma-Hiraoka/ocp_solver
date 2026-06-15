@@ -36,6 +36,7 @@ add_library(${PROJECT_NAME}
   src/pose_optimizer.cpp
   src/contact_schedule.cpp
   src/solver/switched_model_reference_manager.cpp
+  src/solver/trajectory.cpp
   src/solver/dynamics_helper_functions.cpp
   src/solver/system_dynamics.cpp
   src/solver/system_dynamics_ad.cpp
