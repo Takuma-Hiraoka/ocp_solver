@@ -29,4 +29,18 @@ namespace ocp_solver {
     bool interpolate = true;
   };
 
+  struct WrenchTrajectory {
+    WrenchTrajectory();
+    explicit WrenchTrajectory(ocs2::vector_t targetWrench);
+    WrenchTrajectory(ocs2::scalar_array_t timeTrajectory,
+                     ocs2::vector_array_t wrenchTrajectory,
+                     bool interpolate = true);
+
+    ocs2::vector_t getTargetWrench(ocs2::scalar_t time) const;
+
+    ocs2::scalar_array_t timeTrajectory;
+    ocs2::vector_array_t wrenchTrajectory;
+    bool interpolate = true;
+  };
+
 }

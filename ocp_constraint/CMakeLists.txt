@@ -25,6 +25,7 @@ add_library(${PROJECT_NAME}
   src/swing_position_constraint_ad.cpp
   src/joint_limit_constraint.cpp
   src/surface_contact_constraint.cpp
+  src/target_wrench_constraint.cpp
   src/joint_torque_cost.cpp
   src/joint_torque_cost_ad.cpp
   )

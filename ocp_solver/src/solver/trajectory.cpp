@@ -100,4 +100,37 @@ namespace ocp_solver {
                              interpolationRatio(timeTrajectory, lowerIndex, upperIndex, time));
   }
 
+  WrenchTrajectory::WrenchTrajectory()
+    : WrenchTrajectory(ocs2::vector_t::Zero(6)) {}
+
+  WrenchTrajectory::WrenchTrajectory(ocs2::vector_t targetWrench)
+    : timeTrajectory{0.0},
+      wrenchTrajectory{std::move(targetWrench)},
+      interpolate(false) {
+    assert(wrenchTrajectory.front().size() == 6);
+  }
+
+  WrenchTrajectory::WrenchTrajectory(ocs2::scalar_array_t timeTrajectory_,
+                                     ocs2::vector_array_t wrenchTrajectory_,
+                                     bool interpolate_)
+    : timeTrajectory(std::move(timeTrajectory_)),
+      wrenchTrajectory(std::move(wrenchTrajectory_)),
+      interpolate(interpolate_) {
+    assert(!timeTrajectory.empty());
+    assert(timeTrajectory.size() == wrenchTrajectory.size());
+    for (const ocs2::vector_t& wrench : wrenchTrajectory) {
+      assert(wrench.size() == 6);
+    }
+  }
+
+  ocs2::vector_t WrenchTrajectory::getTargetWrench(ocs2::scalar_t time) const {
+    const auto [lowerIndex, upperIndex] = getInterpolationIndices(timeTrajectory, time);
+    if ((lowerIndex == upperIndex) || !interpolate) {
+      return wrenchTrajectory[lowerIndex];
+    }
+    return interpolateVector(wrenchTrajectory[lowerIndex],
+                             wrenchTrajectory[upperIndex],
+                             interpolationRatio(timeTrajectory, lowerIndex, upperIndex, time));
+  }
+
 }
