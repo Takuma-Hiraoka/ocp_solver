@@ -22,10 +22,10 @@ namespace ocp_constraint {
     coef_( 2,0) = -1.0; coef_( 2,2) = config.frictionCoef;
     coef_( 3,1) =  1.0; coef_( 3,2) = config.frictionCoef;
     coef_( 4,1) = -1.0; coef_( 4,2) = config.frictionCoef;
-    coef_( 5,3) =  1.0; coef_( 5,2) = config.x;
-    coef_( 6,3) = -1.0; coef_( 6,2) = config.x;
-    coef_( 7,4) =  1.0; coef_( 7,2) = config.y;
-    coef_( 8,4) = -1.0; coef_( 8,2) = config.y;
+    coef_( 5,3) =  1.0; coef_( 5,2) = config.y;
+    coef_( 6,3) = -1.0; coef_( 6,2) = config.y;
+    coef_( 7,4) =  1.0; coef_( 7,2) = config.x;
+    coef_( 8,4) = -1.0; coef_( 8,2) = config.x;
     coef_( 9,5) =  1.0; coef_( 9,2) = config.rotFrictionCoef;
     coef_(10,5) = -1.0; coef_(10,2) = config.rotFrictionCoef;
   }

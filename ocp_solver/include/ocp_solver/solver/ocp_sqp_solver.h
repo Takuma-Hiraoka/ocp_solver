@@ -14,6 +14,7 @@ namespace ocp_solver {
 
     OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer);
     void addStateProjection(StateProjection projection);
+    void setSqpIteration(size_t sqpIteration);
   private:
     void runImpl(ocs2::scalar_t initTime, const ocs2::vector_t& initState, ocs2::scalar_t finalTime) override;
 
@@ -28,5 +29,6 @@ namespace ocp_solver {
                                  std::vector<ocs2::Metrics>& metrics);
 
     std::vector<StateProjection> stateProjections_;
+    size_t sqpIterationLimit_;
   };
 }

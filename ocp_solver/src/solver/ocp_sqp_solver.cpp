@@ -28,17 +28,80 @@ namespace ocp_solver {
         target = std::move(resized);
       }
     }
+
+    void initializeStateInputTrajectoriesWithTailHold(
+        const ocs2::vector_t& initState,
+        const std::vector<ocs2::AnnotatedTime>& timeDiscretization,
+        const ocs2::PrimalSolution& primalSolution,
+        ocs2::Initializer& initializer,
+        ocs2::vector_array_t& stateTrajectory,
+        ocs2::vector_array_t& inputTrajectory) {
+      const int N = static_cast<int>(timeDiscretization.size()) - 1;
+      stateTrajectory.clear();
+      stateTrajectory.reserve(N + 1);
+      inputTrajectory.clear();
+      inputTrajectory.reserve(N);
+
+      ocs2::scalar_t interpolateStateTill = timeDiscretization.front().time;
+      ocs2::scalar_t interpolateInputTill = timeDiscretization.front().time;
+      const bool hasPrimalSolution = primalSolution.timeTrajectory_.size() >= 2;
+      if (hasPrimalSolution) {
+        interpolateStateTill = primalSolution.timeTrajectory_.back();
+        interpolateInputTill = primalSolution.timeTrajectory_[primalSolution.timeTrajectory_.size() - 2];
+      }
+
+      const ocs2::scalar_t initTime = ocs2::getIntervalStart(timeDiscretization[0]);
+      if (initTime < interpolateStateTill) {
+        stateTrajectory.push_back(ocs2::LinearInterpolation::interpolate(
+            initTime, primalSolution.timeTrajectory_, primalSolution.stateTrajectory_));
+      } else {
+        stateTrajectory.push_back(initState);
+      }
+
+      for (int i = 0; i < N; ++i) {
+        if (timeDiscretization[i].event == ocs2::AnnotatedTime::Event::PreEvent) {
+          inputTrajectory.push_back(ocs2::vector_t());
+          stateTrajectory.push_back(ocs2::multiple_shooting::initializeEventNode(
+              timeDiscretization[i].time, stateTrajectory.back()));
+          continue;
+        }
+
+        const ocs2::scalar_t time = ocs2::getIntervalStart(timeDiscretization[i]);
+        const ocs2::scalar_t nextTime = ocs2::getIntervalEnd(timeDiscretization[i + 1]);
+        ocs2::vector_t input;
+        ocs2::vector_t nextState;
+        if (time > interpolateInputTill || nextTime > interpolateStateTill) {
+          if (hasPrimalSolution && !inputTrajectory.empty()) {
+            input = inputTrajectory.back();
+            nextState = stateTrajectory.back();
+          } else {
+            std::tie(input, nextState) =
+                ocs2::multiple_shooting::initializeIntermediateNode(initializer, time, nextTime, stateTrajectory.back());
+          }
+        } else {
+          std::tie(input, nextState) =
+              ocs2::multiple_shooting::initializeIntermediateNode(primalSolution, time, nextTime);
+        }
+        inputTrajectory.push_back(std::move(input));
+        stateTrajectory.push_back(std::move(nextState));
+      }
+    }
   }  // namespace
 
   // use pinocchio::diference
   OcpSqpSolver::OcpSqpSolver(ocs2::sqp::Settings settings, const ocs2::OptimalControlProblem& optimalControlProblem, const ocs2::Initializer& initializer)
-    : SqpSolver(settings, optimalControlProblem, initializer) {
+    : SqpSolver(settings, optimalControlProblem, initializer),
+      sqpIterationLimit_(std::max<size_t>(1, settings.sqpIteration)) {
     discretizer_ = ocp_solver::selectDynamicsDiscretization(settings_.integratorType);
     sensitivityDiscretizer_ = ocp_solver::selectDynamicsSensitivityDiscretization(settings_.integratorType);
   }
 
   void OcpSqpSolver::addStateProjection(StateProjection projection) {
     stateProjections_.push_back(std::move(projection));
+  }
+
+  void OcpSqpSolver::setSqpIteration(size_t sqpIteration) {
+    sqpIterationLimit_ = std::max<size_t>(1, sqpIteration);
   }
 
 
@@ -66,7 +129,7 @@ namespace ocp_solver {
 
     // Initialize the state and input
     ocs2::vector_array_t x, u;
-    ocs2::multiple_shooting::initializeStateInputTrajectories(initState, timeDiscretization, primalSolution_, *initializerPtr_, x, u);
+    initializeStateInputTrajectoriesWithTailHold(initState, timeDiscretization, primalSolution_, *initializerPtr_, x, u);
     for (ocs2::vector_t& state : x) {
       for (const StateProjection& projection : stateProjections_) {
         projection(state);
@@ -114,6 +177,10 @@ namespace ocp_solver {
 
       // Check convergence
       convergence = checkConvergence(iter, baselinePerformance, stepInfo);
+      if (convergence == ocs2::sqp::Convergence::FALSE &&
+          static_cast<size_t>(iter + 1) >= sqpIterationLimit_) {
+        convergence = ocs2::sqp::Convergence::ITERATIONS;
+      }
 
       // Logging
       if (settings_.enableLogging) {
