@@ -5,8 +5,28 @@
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/jacobian.hpp>
 #include <pinocchio/multibody/data.hpp>
+#include <stdexcept>
 
 namespace ocp_constraint {
+  namespace {
+    void checkSurfaceContactDimensions(const ocp_solver::StateConverter<ocs2::scalar_t>& stateConverter,
+                                       size_t contactIndex,
+                                       const ocs2::PinocchioInterface& pinocchioInterface,
+                                       const ocs2::vector_t& input) {
+      if (contactIndex >= stateConverter.getContactCandidateIds().size()) {
+        throw std::runtime_error("SurfaceContactConstraint received an invalid contact index.");
+      }
+      if (input.size() != static_cast<Eigen::Index>(stateConverter.getInputDim())) {
+        throw std::runtime_error("SurfaceContactConstraint received input with invalid dimension.");
+      }
+      if (static_cast<Eigen::Index>(6 * (contactIndex + 1)) > input.size()) {
+        throw std::runtime_error("SurfaceContactConstraint contact wrench index exceeds input dimension.");
+      }
+      if (stateConverter.getContactCandidate(contactIndex).parentJointIndex >= pinocchioInterface.getData().oMi.size()) {
+        throw std::runtime_error("SurfaceContactConstraint contact parent joint index exceeds Pinocchio data.");
+      }
+    }
+  }  // namespace
 
   SurfaceContactConstraint::SurfaceContactConstraint(const ocp_solver::SwitchedModelReferenceManager& referenceManager,
                                                      size_t contactIndex,
@@ -47,6 +67,7 @@ namespace ocp_constraint {
                                                     const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
+    checkSurfaceContactDimensions(*stateConverterPtr_, contactIndex_, pinocchioInterface, input);
     Eigen::Matrix3d R_frame =
       ocp_solver::getContactCandidatePlacement(pinocchioInterface, stateConverterPtr_->getContactCandidate(contactIndex_)).rotation();
     Eigen::Matrix<ocs2::scalar_t, 6, 6> R = Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();
@@ -62,6 +83,7 @@ namespace ocp_constraint {
                                                                                            const ocs2::PreComputation& preComp) const {
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
+    checkSurfaceContactDimensions(*stateConverterPtr_, contactIndex_, pinocchioInterface, input);
     Eigen::Matrix3d R_frame =
       ocp_solver::getContactCandidatePlacement(pinocchioInterface, stateConverterPtr_->getContactCandidate(contactIndex_)).rotation();
     Eigen::Matrix<ocs2::scalar_t, 6, 6> R = Eigen::Matrix<ocs2::scalar_t, 6, 6>::Zero();

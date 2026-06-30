@@ -29,6 +29,40 @@ namespace ocp_solver {
       }
     }
 
+    ocs2::vector_t findLastNonEmptyInput(const ocs2::vector_array_t& inputTrajectory) {
+      for (auto it = inputTrajectory.rbegin(); it != inputTrajectory.rend(); ++it) {
+        if (it->size() > 0) {
+          return *it;
+        }
+      }
+      return ocs2::vector_t();
+    }
+
+    ocs2::vector_t findNearestNonEmptyInput(ocs2::scalar_t time, const ocs2::PrimalSolution& primalSolution) {
+      const size_t count = std::min(primalSolution.timeTrajectory_.size(), primalSolution.inputTrajectory_.size());
+      int lower = -1;
+      int upper = -1;
+      for (size_t i = 0; i < count; ++i) {
+        if (primalSolution.inputTrajectory_[i].size() == 0) {
+          continue;
+        }
+        if (primalSolution.timeTrajectory_[i] <= time) {
+          lower = static_cast<int>(i);
+        }
+        if (primalSolution.timeTrajectory_[i] >= time) {
+          upper = static_cast<int>(i);
+          break;
+        }
+      }
+      if (lower >= 0) {
+        return primalSolution.inputTrajectory_[static_cast<size_t>(lower)];
+      }
+      if (upper >= 0) {
+        return primalSolution.inputTrajectory_[static_cast<size_t>(upper)];
+      }
+      return ocs2::vector_t();
+    }
+
     void initializeStateInputTrajectoriesWithTailHold(
         const ocs2::vector_t& initState,
         const std::vector<ocs2::AnnotatedTime>& timeDiscretization,
@@ -71,8 +105,8 @@ namespace ocp_solver {
         ocs2::vector_t input;
         ocs2::vector_t nextState;
         if (time > interpolateInputTill || nextTime > interpolateStateTill) {
-          if (hasPrimalSolution && !inputTrajectory.empty()) {
-            input = inputTrajectory.back();
+          if (hasPrimalSolution) {
+            input = findLastNonEmptyInput(inputTrajectory);
             nextState = stateTrajectory.back();
           } else {
             std::tie(input, nextState) =
@@ -81,6 +115,13 @@ namespace ocp_solver {
         } else {
           std::tie(input, nextState) =
               ocs2::multiple_shooting::initializeIntermediateNode(primalSolution, time, nextTime);
+          if (input.size() == 0) {
+            input = findNearestNonEmptyInput(time, primalSolution);
+          }
+        }
+        if (input.size() == 0) {
+          std::tie(input, nextState) =
+              ocs2::multiple_shooting::initializeIntermediateNode(initializer, time, nextTime, stateTrajectory.back());
         }
         inputTrajectory.push_back(std::move(input));
         stateTrajectory.push_back(std::move(nextState));
@@ -113,18 +154,19 @@ namespace ocp_solver {
     }
 
     // Determine time discretization, taking into account event times.
-    const ocs2::scalar_array_t& eventTimes = this->getReferenceManager().getModeSchedule().eventTimes;
+    const ocs2::ModeSchedule modeSchedule = this->getReferenceManager().getModeSchedule();
+    const ocs2::TargetTrajectories targetTrajectories = this->getReferenceManager().getTargetTrajectories();
+    const ocs2::scalar_array_t& eventTimes = modeSchedule.eventTimes;
     const std::vector<ocs2::AnnotatedTime> timeDiscretization = ocs2::timeDiscretizationWithEvents(initTime, finalTime, settings_.dt, eventTimes);
 
     // Initialize references
     for (ocs2::OptimalControlProblem& ocpDefinition : ocpDefinitions_) {
-      const ocs2::TargetTrajectories& targetTrajectories = this->getReferenceManager().getTargetTrajectories();
       ocpDefinition.targetTrajectoriesPtr = &targetTrajectories;
     }
 
     // Trajectory spread of primalSolution_
     if (!primalSolution_.timeTrajectory_.empty()) {
-      std::ignore = ocs2::trajectorySpread(primalSolution_.modeSchedule_, this->getReferenceManager().getModeSchedule(), primalSolution_);
+      std::ignore = ocs2::trajectorySpread(primalSolution_.modeSchedule_, modeSchedule, primalSolution_);
     }
 
     // Initialize the state and input

@@ -1,9 +1,28 @@
 #include "ocp_solver/ocp_data/ocp_state_cost_collection.h"
 
 #include <algorithm>
+#include <sstream>
+#include <stdexcept>
+#include <typeinfo>
 
 namespace ocp_solver {
   namespace {
+    void checkCostDimensions(const ocs2::ScalarFunctionQuadraticApproximation& term,
+                             size_t stateVariableDim,
+                             const std::type_info& termType) {
+      const auto stateDim = static_cast<Eigen::Index>(stateVariableDim);
+      if (term.dfdx.size() != stateDim
+          || term.dfdxx.rows() != stateDim || term.dfdxx.cols() != stateDim) {
+        std::ostringstream message;
+        message << "StateCostCollection received inconsistent quadratic approximation from "
+                << termType.name()
+                << ": dfdx=" << term.dfdx.size()
+                << ", dfdxx=" << term.dfdxx.rows() << "x" << term.dfdxx.cols()
+                << ", expected state=" << stateVariableDim;
+        throw std::runtime_error(message.str());
+      }
+    }
+
     void addPadded(ocs2::ScalarFunctionQuadraticApproximation& total,
                    const ocs2::ScalarFunctionQuadraticApproximation& term) {
       total.f += term.f;
@@ -35,7 +54,10 @@ namespace ocp_solver {
     ocs2::ScalarFunctionQuadraticApproximation cost = ocs2::ScalarFunctionQuadraticApproximation::Zero(state_variable_dim_);
     std::for_each(firstActive, terms_.end(), [&](const std::unique_ptr<ocs2::StateCost>& costTerm) {
                                           if (costTerm->isActive(time)) {
-                                            addPadded(cost, costTerm->getQuadraticApproximation(time, state, targetTrajectories, preComp));
+                                            const auto term =
+                                              costTerm->getQuadraticApproximation(time, state, targetTrajectories, preComp);
+                                            checkCostDimensions(term, state_variable_dim_, typeid(*costTerm));
+                                            addPadded(cost, term);
                                           }
                                         });
 

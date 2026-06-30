@@ -1,9 +1,35 @@
 #include "ocp_solver/ocp_data/ocp_state_input_cost_collection.h"
 
 #include <algorithm>
+#include <sstream>
+#include <stdexcept>
+#include <typeinfo>
 
 namespace ocp_solver {
   namespace {
+    void checkCostDimensions(const ocs2::ScalarFunctionQuadraticApproximation& term,
+                             size_t stateVariableDim,
+                             size_t inputVariableDim,
+                             const std::type_info& termType) {
+      const auto stateDim = static_cast<Eigen::Index>(stateVariableDim);
+      const auto inputDim = static_cast<Eigen::Index>(inputVariableDim);
+      if (term.dfdx.size() != stateDim || term.dfdu.size() != inputDim
+          || term.dfdxx.rows() != stateDim || term.dfdxx.cols() != stateDim
+          || term.dfduu.rows() != inputDim || term.dfduu.cols() != inputDim
+          || term.dfdux.rows() != inputDim || term.dfdux.cols() != stateDim) {
+        std::ostringstream message;
+        message << "StateInputCostCollection received inconsistent quadratic approximation from "
+                << termType.name()
+                << ": dfdx=" << term.dfdx.size()
+                << ", dfdu=" << term.dfdu.size()
+                << ", dfdxx=" << term.dfdxx.rows() << "x" << term.dfdxx.cols()
+                << ", dfduu=" << term.dfduu.rows() << "x" << term.dfduu.cols()
+                << ", dfdux=" << term.dfdux.rows() << "x" << term.dfdux.cols()
+                << ", expected state/input=" << stateVariableDim << "/" << inputVariableDim;
+        throw std::runtime_error(message.str());
+      }
+    }
+
     void addPadded(ocs2::ScalarFunctionQuadraticApproximation& total,
                    const ocs2::ScalarFunctionQuadraticApproximation& term) {
       total.f += term.f;
@@ -47,7 +73,10 @@ namespace ocp_solver {
       ocs2::ScalarFunctionQuadraticApproximation::Zero(state_variable_dim_, input_variable_dim_);
     std::for_each(firstActive, terms_.end(), [&](const std::unique_ptr<ocs2::StateInputCost>& costTerm) {
                                           if (costTerm->isActive(time)) {
-                                            addPadded(cost, costTerm->getQuadraticApproximation(time, state, input, targetTrajectories, preComp));
+                                            const auto term =
+                                              costTerm->getQuadraticApproximation(time, state, input, targetTrajectories, preComp);
+                                            checkCostDimensions(term, state_variable_dim_, input_variable_dim_, typeid(*costTerm));
+                                            addPadded(cost, term);
                                           }
                                         });
 

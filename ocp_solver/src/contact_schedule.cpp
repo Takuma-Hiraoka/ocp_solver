@@ -1,16 +1,24 @@
 #include "ocp_solver/contact_schedule.h"
 #include <ocs2_core/misc/Display.h>
 #include <algorithm>
+#include <stdexcept>
 
 namespace ocp_solver {
   ContactSchedule::ContactSchedule(std::vector<ocs2::scalar_t> eventTimes_, std::vector<std::vector<ContactTargetTrajectory> > contactSequence_)
     : ModeSchedule(eventTimes_, std::vector<size_t>(eventTimes_.size()+1, 0)), contactSequence(std::move(contactSequence_)) {
-    assert(!contactSequence.empty());
-    assert(eventTimes.size() + 1 == contactSequence.size());
+    if (contactSequence.empty()) {
+      throw std::runtime_error("ContactSchedule requires at least one contact segment.");
+    }
+    if (eventTimes.size() + 1 != contactSequence.size()) {
+      throw std::runtime_error("ContactSchedule requires contactSequence.size() == eventTimes.size() + 1.");
+    }
   }
 
   std::vector<ContactTargetTrajectory> ContactSchedule::contactAtTime(ocs2::scalar_t time) const {
     const size_t ind = ocs2::lookup::findIndexInTimeArray(eventTimes, time);
+    if (ind >= contactSequence.size()) {
+      return contactSequence.back();
+    }
     return contactSequence[ind];
   }
 
