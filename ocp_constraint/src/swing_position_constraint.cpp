@@ -1,4 +1,7 @@
 #include "ocp_constraint/swing_position_constraint.h"
+
+#include <algorithm>
+
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 
 namespace ocp_constraint {
@@ -91,11 +94,13 @@ namespace ocp_constraint {
           targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1-downRatio));
         }
       } else if (nearestContacts[0].first != -1.0) { // lift
-        double liftRatio = (time - nearestContacts[0].first) / ignoreTime_;
+        double liftRatio = std::clamp((time - nearestContacts[0].first) / ignoreTime_, 0.0, 1.0);
         targetPose = nearestContacts[0].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * liftRatio);
       } else if (nearestContacts[1].first != -1.0) { // down
-        double downRatio = (nearestContacts[1].first - time) / (nearestContacts[1].first > ignoreTime_ ? ignoreTime_ : nearestContacts[1].first);
+        double downRatio = std::clamp(
+            (nearestContacts[1].first - time) / (nearestContacts[1].first > ignoreTime_ ? ignoreTime_ : nearestContacts[1].first),
+            0.0, 1.0);
         targetPose = nearestContacts[1].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * downRatio);
       }
@@ -150,11 +155,13 @@ namespace ocp_constraint {
           targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1-downRatio));
         }
       } else if (nearestContacts[0].first != -1.0) { // lift
-        double liftRatio = (time - nearestContacts[0].first) / ignoreTime_;
+        double liftRatio = std::clamp((time - nearestContacts[0].first) / ignoreTime_, 0.0, 1.0);
         targetPose = nearestContacts[0].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * liftRatio);
       } else if (nearestContacts[1].first != -1.0) { // down
-        double downRatio = (nearestContacts[1].first - time) / (nearestContacts[1].first > ignoreTime_ ? ignoreTime_ : nearestContacts[1].first);
+        double downRatio = std::clamp(
+            (nearestContacts[1].first - time) / (nearestContacts[1].first > ignoreTime_ ? ignoreTime_ : nearestContacts[1].first),
+            0.0, 1.0);
         targetPose = nearestContacts[1].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * downRatio);
       }
