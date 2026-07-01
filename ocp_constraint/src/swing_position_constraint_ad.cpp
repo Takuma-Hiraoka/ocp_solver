@@ -23,7 +23,10 @@ namespace ocp_constraint {
     : StateConstraint(rhs),
       referenceManagerPtr_(rhs.referenceManagerPtr_),
       frameDynamicsPtr_(rhs.frameDynamicsPtr_->clone()),
-      config_(rhs.config_) {}
+      config_(rhs.config_),
+      ignoreTime_(rhs.ignoreTime_),
+      height_(rhs.height_),
+      swingWeight_(rhs.swingWeight_) {}
 
   void SwingPositionConstraintAD::configure(Config&& config) {
     assert((config.Ax.size() > 0 && config.Ax.rows() == numConstraints_) || config.Ax.size() == 0);
@@ -35,6 +38,7 @@ namespace ocp_constraint {
     bool inContact = referenceManagerPtr_->isInContact(time, frameDynamicsPtr_->getFrameIds()[0]);
     if (inContact) return false;
     std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > nearestContacts = nearestContact(time);
+    if ((nearestContacts[0].first != -1.0) && (nearestContacts[1].first != -1.0)) return true;
     if (((nearestContacts[0].first != -1.0) && (time - nearestContacts[0].first) < ignoreTime_) ||
         ((nearestContacts[1].first != -1.0) && (nearestContacts[1].first - time) < ignoreTime_)) return true;
     return false;
@@ -90,7 +94,7 @@ namespace ocp_constraint {
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * liftRatio);
       } else if (nearestContacts[1].first != -1.0) { // down
         double downRatio = std::clamp((nearestContacts[1].first - time) / ignoreTime_, 0.0, 1.0);
-        targetPose = nearestContacts[0].second;
+        targetPose = nearestContacts[1].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1.0 - downRatio));
       }
       // foot pose is a 6D vector containing the foot position and orientation error wrt. to the ground normal
@@ -132,7 +136,7 @@ namespace ocp_constraint {
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * liftRatio);
       } else if (nearestContacts[1].first != -1.0) { // down
         double downRatio = std::clamp((nearestContacts[1].first - time) / ignoreTime_, 0.0, 1.0);
-        targetPose = nearestContacts[0].second;
+        targetPose = nearestContacts[1].second;
         targetPose.translation() += targetPose.rotation() * Eigen::Vector3d(0.0, 0.0, height_ * (1.0 - downRatio));
       }
       const ocs2::VectorFunctionLinearApproximation positionApprox = frameDynamicsPtr_->getPositionLinearApproximation(state).front();

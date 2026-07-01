@@ -35,7 +35,21 @@ namespace ocp_constraint {
   }
 
   bool SwingPositionConstraint::isActive(ocs2::scalar_t time) const {
-    return true;
+    const bool inContact = referenceManagerPtr_->isInContact(time, frameDynamicsPtr_->getFrameId());
+    if (inContact) {
+      return false;
+    }
+    const std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > nearestContacts = nearestContact(time);
+    if ((nearestContacts[0].first != -1.0) && (nearestContacts[1].first != -1.0)) {
+      return true;
+    }
+    if ((nearestContacts[0].first != -1.0) && ((time - nearestContacts[0].first) < ignoreTime_)) {
+      return true;
+    }
+    if ((nearestContacts[1].first != -1.0) && ((nearestContacts[1].first - time) < ignoreTime_)) {
+      return true;
+    }
+    return false;
   }
 
   std::vector<std::pair<ocs2::scalar_t, pinocchio::SE3> > SwingPositionConstraint::nearestContact(ocs2::scalar_t time) const {
