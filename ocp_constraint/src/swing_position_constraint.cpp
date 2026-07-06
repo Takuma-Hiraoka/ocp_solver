@@ -1,4 +1,5 @@
 #include "ocp_constraint/swing_position_constraint.h"
+#include <ocp_solver/common/scope_profiler.h>
 
 #include <algorithm>
 
@@ -78,6 +79,7 @@ namespace ocp_constraint {
   ocs2::vector_t SwingPositionConstraint::getValue(ocs2::scalar_t time,
                                                    const ocs2::vector_t& state,
                                                    const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("SwingPositionConstraint::getValue");
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::vector_t f = ocs2::vector_t::Zero(3);
     if (config_.Ax.size() > 0) {
@@ -133,6 +135,7 @@ namespace ocp_constraint {
   ocs2::VectorFunctionLinearApproximation SwingPositionConstraint::getLinearApproximation(ocs2::scalar_t time,
                                                                                           const ocs2::vector_t& state,
                                                                                           const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("SwingPositionConstraint::getLinearApproximation");
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
     const size_t stateVariableDim = state.size() - (pinocchioInterface.getModel().nq - pinocchioInterface.getModel().nv);

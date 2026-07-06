@@ -1,5 +1,6 @@
 #include <pinocchio/fwd.hpp>
 #include <pinocchio/multibody/model.hpp>
+#include "ocp_solver/common/scope_profiler.h"
 #include "ocp_solver/common/quadratic_state_input_cost.h"
 
 namespace ocp_solver {
@@ -15,6 +16,7 @@ namespace ocp_solver {
 
   ocs2::scalar_t QuadraticStateInputCost::getValue(ocs2::scalar_t time, const ocs2::vector_t& state, const ocs2::vector_t& input,
                                                    const ocs2::TargetTrajectories& targetTrajectories, const ocs2::PreComputation&) const {
+    OCP_SOLVER_PROFILE_SCOPE("QuadraticStateInputCost::getValue");
     ocs2::vector_t stateDeviation, inputDeviation;
     std::tie(stateDeviation, inputDeviation) = getStateInputDeviation(time, state, input, targetTrajectories);
 
@@ -30,6 +32,7 @@ namespace ocp_solver {
                                                                                                 const ocs2::vector_t& input,
                                                                                                 const ocs2::TargetTrajectories& targetTrajectories,
                                                                                                 const ocs2::PreComputation&) const {
+    OCP_SOLVER_PROFILE_SCOPE("QuadraticStateInputCost::getQuadraticApproximation");
     ocs2::vector_t stateDeviation, inputDeviation;
     std::tie(stateDeviation, inputDeviation) = getStateInputDeviation(time, state, input, targetTrajectories);
 

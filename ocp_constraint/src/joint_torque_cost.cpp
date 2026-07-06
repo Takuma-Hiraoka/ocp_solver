@@ -1,4 +1,5 @@
 #include "ocp_constraint/joint_torque_cost.h"
+#include <ocp_solver/common/scope_profiler.h>
 #include <ocp_solver/solver/ocp_pre_computation.h>
 #include <ocp_solver/solver/dynamics_helper_functions.h>
 #include <pinocchio/algorithm/frames.hpp>
@@ -108,6 +109,7 @@ namespace ocp_constraint {
 
   ocs2::scalar_t JointTorqueCost::getValue(ocs2::scalar_t time, const ocs2::vector_t& state, const ocs2::vector_t& input, const ocs2::TargetTrajectories& targetTrajectories,
                                            const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("JointTorqueCost::getValue");
     const ocp_solver::OCPPreComputation& ocpPreComp = static_cast<const ocp_solver::OCPPreComputation&>(preComp);
     ocs2::PinocchioInterface& pinocchioInterface = ocpPreComp.getPinocchioInterface();
     const ocs2::vector_t torques = getJointTorques(state, input, pinocchioInterface, *stateConverter_);
@@ -118,6 +120,7 @@ namespace ocp_constraint {
   ocs2::ScalarFunctionQuadraticApproximation JointTorqueCost::getQuadraticApproximation(ocs2::scalar_t time, const ocs2::vector_t& state, const ocs2::vector_t& input,
                                                                                         const ocs2::TargetTrajectories& targetTrajectories,
                                                                                         const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("JointTorqueCost::getQuadraticApproximation");
 
     ocs2::ScalarFunctionQuadraticApproximation torque;
 

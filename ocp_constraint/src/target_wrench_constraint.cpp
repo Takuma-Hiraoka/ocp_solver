@@ -1,5 +1,7 @@
 #include "ocp_constraint/target_wrench_constraint.h"
 
+#include <ocp_solver/common/scope_profiler.h>
+
 #include <utility>
 
 namespace ocp_constraint {
@@ -57,6 +59,7 @@ namespace ocp_constraint {
                                                   const ocs2::vector_t& state,
                                                   const ocs2::vector_t& input,
                                                   const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("TargetWrenchConstraint::getValue");
     return config_.A * (stateConverterPtr_->getContactWrench(input, contactIndex_) -
                         targetWrenchTrajectory_.getTargetWrench(time));
   }
@@ -66,6 +69,7 @@ namespace ocp_constraint {
       const ocs2::vector_t& state,
       const ocs2::vector_t& input,
       const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("TargetWrenchConstraint::getLinearApproximation");
     ocs2::VectorFunctionLinearApproximation approx;
     approx.f = getValue(time, state, input, preComp);
     approx.dfdx = ocs2::matrix_t::Zero(getNumConstraints(time), stateConverterPtr_->getStateVariableDim());

@@ -1,4 +1,5 @@
 #include "ocp_constraint/contact_fix_constraint.h"
+#include <ocp_solver/common/scope_profiler.h>
 #include <ocs2_robotic_tools/common/RotationTransforms.h>
 
 namespace ocp_constraint {
@@ -38,6 +39,7 @@ namespace ocp_constraint {
                                                 const ocs2::vector_t& state,
                                                 const ocs2::vector_t& input,
                                                 const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("ContactFixConstraint::getValue");
     if (!getFrameDynamics().usesSearchedContactPoint()) {
       return PositionConstraint::getValue(time, state, input, preComp);
     }
@@ -73,6 +75,7 @@ namespace ocp_constraint {
       const ocs2::vector_t& state,
       const ocs2::vector_t& input,
       const ocs2::PreComputation& preComp) const {
+    OCP_SOLVER_PROFILE_SCOPE("ContactFixConstraint::getLinearApproximation");
     if (!getFrameDynamics().usesSearchedContactPoint()) {
       return PositionConstraint::getLinearApproximation(time, state, input, preComp);
     }
