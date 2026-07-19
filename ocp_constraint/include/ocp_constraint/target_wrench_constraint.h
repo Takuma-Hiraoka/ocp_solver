@@ -13,6 +13,9 @@ namespace ocp_constraint {
   public:
     struct Config {
       ocs2::matrix_t A;
+      bool useReferenceInputTarget;
+
+      Config() : useReferenceInputTarget(false) {}
     };
 
     TargetWrenchConstraint(size_t contactIndex,

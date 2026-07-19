@@ -60,8 +60,12 @@ namespace ocp_constraint {
                                                   const ocs2::vector_t& input,
                                                   const ocs2::PreComputation& preComp) const {
     OCP_SOLVER_PROFILE_SCOPE("TargetWrenchConstraint::getValue");
-    return config_.A * (stateConverterPtr_->getContactWrench(input, contactIndex_) -
-                        targetWrenchTrajectory_.getTargetWrench(time));
+    ocs2::vector_t targetWrench = targetWrenchTrajectory_.getTargetWrench(time);
+    if (config_.useReferenceInputTarget && referenceManagerPtr_ != nullptr) {
+      targetWrench = stateConverterPtr_->getContactWrench(
+          referenceManagerPtr_->getTargetTrajectories().getDesiredInput(time), contactIndex_);
+    }
+    return config_.A * (stateConverterPtr_->getContactWrench(input, contactIndex_) - targetWrench);
   }
 
   ocs2::VectorFunctionLinearApproximation TargetWrenchConstraint::getLinearApproximation(
